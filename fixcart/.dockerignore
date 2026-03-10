@@ -1,0 +1,5 @@
+target
+.git
+.mvn
+fixcart-frontend/node_modules
+fixcart-frontend/dist
