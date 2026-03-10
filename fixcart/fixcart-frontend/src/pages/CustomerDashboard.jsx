@@ -6,7 +6,8 @@ import {
   findNearbyWorkers,
   getMyBookings,
   getMyPayments,
-  getTrackingEvents
+  getTrackingEvents,
+  updateBookingStatus
 } from "../api/fixcartApi";
 import LiveTrackingMap from "../components/LiveTrackingMap";
 import LocationPicker from "../components/LocationPicker";
@@ -36,6 +37,7 @@ export default function CustomerDashboard() {
     serviceAddress: "",
     customerLatitude: null,
     customerLongitude: null,
+    scheduledAt: "",
     notes: ""
   });
 
@@ -73,7 +75,8 @@ export default function CustomerDashboard() {
         {
           ...bookingForm,
           customerLatitude: Number(bookingForm.customerLatitude),
-          customerLongitude: Number(bookingForm.customerLongitude)
+          customerLongitude: Number(bookingForm.customerLongitude),
+          scheduledAt: bookingForm.scheduledAt || null
         },
         auth.token
       );
@@ -82,6 +85,7 @@ export default function CustomerDashboard() {
         serviceAddress: "",
         customerLatitude: null,
         customerLongitude: null,
+        scheduledAt: "",
         notes: ""
       });
       await loadBookings();
@@ -157,6 +161,20 @@ export default function CustomerDashboard() {
     }
   };
 
+  const onCancelBooking = async (bookingId) => {
+    const cancellationReason = window.prompt("Enter cancellation reason for this fixcart booking:");
+    if (!cancellationReason) return;
+    setError("");
+    setInfo("");
+    try {
+      await updateBookingStatus(bookingId, { status: "CANCELLED", cancellationReason }, auth.token);
+      setInfo(`Booking ${bookingId} cancelled.`);
+      await loadBookings();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <main className="dashboard-layout">
       <section className="card">
@@ -181,6 +199,11 @@ export default function CustomerDashboard() {
             placeholder="Notes (optional)"
             value={bookingForm.notes}
             onChange={(e) => setBookingForm({ ...bookingForm, notes: e.target.value })}
+          />
+          <input
+            type="datetime-local"
+            value={bookingForm.scheduledAt}
+            onChange={(e) => setBookingForm({ ...bookingForm, scheduledAt: e.target.value })}
           />
 
           <LocationPicker
@@ -255,6 +278,14 @@ export default function CustomerDashboard() {
                   {booking.serviceType} - {booking.status}
                 </p>
                 <p>{booking.serviceAddress}</p>
+                <p>Estimated price: {booking.estimatedPrice}</p>
+                {booking.scheduledAt && <p>Scheduled at: {new Date(booking.scheduledAt).toLocaleString()}</p>}
+                {booking.cancellationReason && <p>Cancellation reason: {booking.cancellationReason}</p>}
+                {booking.status !== "COMPLETED" && booking.status !== "CANCELLED" && (
+                  <button type="button" onClick={() => onCancelBooking(booking.bookingId)}>
+                    Cancel Booking
+                  </button>
+                )}
               </article>
             ))}
             {bookings.length === 0 && <p className="muted">No bookings found.</p>}

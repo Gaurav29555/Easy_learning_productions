@@ -74,6 +74,6 @@ public class BookingController {
     ) {
         Long userId = userService.extractUserId(principal.getName());
         UserRole role = userService.extractRole(principal.getName());
-        return ResponseEntity.ok(bookingService.updateStatus(bookingId, request.status(), userId, role));
+        return ResponseEntity.ok(bookingService.updateStatus(bookingId, request.status(), request.cancellationReason(), userId, role));
     }
 }

@@ -4,6 +4,7 @@ import com.fixcart.fixcart.entity.enums.BookingStatus;
 import jakarta.validation.constraints.NotNull;
 
 public record UpdateBookingStatusRequest(
-        @NotNull BookingStatus status
+        @NotNull BookingStatus status,
+        String cancellationReason
 ) {
 }

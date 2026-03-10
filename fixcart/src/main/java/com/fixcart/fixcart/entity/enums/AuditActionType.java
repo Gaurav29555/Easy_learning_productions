@@ -1,0 +1,14 @@
+package com.fixcart.fixcart.entity.enums;
+
+public enum AuditActionType {
+    OTP_SENT,
+    OTP_VERIFIED,
+    USER_REGISTERED,
+    WORKER_REGISTERED,
+    BOOKING_CREATED,
+    BOOKING_ASSIGNED,
+    BOOKING_STATUS_UPDATED,
+    PAYMENT_ORDER_CREATED,
+    PAYMENT_CONFIRMED,
+    WORKER_APPROVAL_UPDATED
+}

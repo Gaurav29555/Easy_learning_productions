@@ -15,6 +15,8 @@ public record RegisterWorkerRequest(
         @NotBlank @Size(min = 6, max = 100) String password,
         @NotBlank @Pattern(regexp = "^[0-9]{10,15}$") String phone,
         @NotNull WorkerType workerType,
+        String kycDocumentUrl,
+        int yearsOfExperience,
         @DecimalMin("-90.0") @DecimalMax("90.0") double latitude,
         @DecimalMin("-180.0") @DecimalMax("180.0") double longitude
 ) {

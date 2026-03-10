@@ -15,6 +15,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -51,6 +52,14 @@ public class Booking {
 
     @Column(length = 500)
     private String notes;
+
+    private LocalDateTime scheduledAt;
+
+    @Column(length = 255)
+    private String cancellationReason;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal estimatedPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

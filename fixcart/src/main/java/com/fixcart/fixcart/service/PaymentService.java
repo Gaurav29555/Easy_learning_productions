@@ -9,6 +9,7 @@ import com.fixcart.fixcart.dto.WebhookAckResponse;
 import com.fixcart.fixcart.entity.Booking;
 import com.fixcart.fixcart.entity.Payment;
 import com.fixcart.fixcart.entity.User;
+import com.fixcart.fixcart.entity.enums.AuditActionType;
 import com.fixcart.fixcart.entity.enums.PaymentProvider;
 import com.fixcart.fixcart.entity.enums.PaymentStatus;
 import com.fixcart.fixcart.entity.enums.UserRole;
@@ -42,6 +43,7 @@ public class PaymentService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final AuditLogService auditLogService;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -87,7 +89,9 @@ public class PaymentService {
             default -> throw new BadRequestException("Unsupported payment provider");
         }
 
-        return map(paymentRepository.save(payment));
+        Payment saved = paymentRepository.save(payment);
+        auditLogService.record(AuditActionType.PAYMENT_ORDER_CREATED, role.name(), userId, "PAYMENT", saved.getId(), "Payment order created in fixcart");
+        return map(saved);
     }
 
     @Transactional
@@ -101,7 +105,9 @@ public class PaymentService {
 
         payment.setProviderPaymentId(request.providerPaymentId());
         payment.setStatus(PaymentStatus.SUCCESS);
-        return map(paymentRepository.save(payment));
+        Payment saved = paymentRepository.save(payment);
+        auditLogService.record(AuditActionType.PAYMENT_CONFIRMED, role.name(), userId, "PAYMENT", saved.getId(), "Payment confirmed in fixcart");
+        return map(saved);
     }
 
     public List<PaymentResponse> getMyPayments(Long customerId) {

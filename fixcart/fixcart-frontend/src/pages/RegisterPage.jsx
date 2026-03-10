@@ -19,6 +19,8 @@ export default function RegisterPage() {
     password: "",
     phone: "",
     workerType: "PLUMBER",
+    kycDocumentUrl: "",
+    yearsOfExperience: 0,
     latitude: null,
     longitude: null
   });
@@ -43,6 +45,8 @@ export default function RegisterPage() {
         ? await registerWorker({
             ...commonPayload,
             workerType: form.workerType,
+            kycDocumentUrl: form.kycDocumentUrl,
+            yearsOfExperience: Number(form.yearsOfExperience),
             latitude: Number(form.latitude),
             longitude: Number(form.longitude)
           })
@@ -168,6 +172,19 @@ export default function RegisterPage() {
                 <option value="PLUMBER">PLUMBER</option>
                 <option value="CARPENTER">CARPENTER</option>
               </select>
+              <input
+                type="url"
+                placeholder="KYC Document URL (Google Drive / CDN link)"
+                value={form.kycDocumentUrl}
+                onChange={(e) => setForm({ ...form, kycDocumentUrl: e.target.value })}
+              />
+              <input
+                type="number"
+                min="0"
+                placeholder="Years of experience"
+                value={form.yearsOfExperience}
+                onChange={(e) => setForm({ ...form, yearsOfExperience: e.target.value })}
+              />
 
               <LocationPicker
                 title="Select Worker Base Location"
@@ -175,6 +192,7 @@ export default function RegisterPage() {
                 longitude={form.longitude}
                 onChange={(latitude, longitude) => setForm({ ...form, latitude, longitude })}
               />
+              <p className="muted">Worker accounts enter `fixcart` in pending review state until admin approval.</p>
             </>
           )}
 

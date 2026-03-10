@@ -1,6 +1,7 @@
 package com.fixcart.fixcart.entity;
 
 import com.fixcart.fixcart.entity.enums.WorkerType;
+import com.fixcart.fixcart.entity.enums.WorkerApprovalStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -31,6 +32,16 @@ public class Worker {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private WorkerType workerType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private WorkerApprovalStatus approvalStatus = WorkerApprovalStatus.PENDING_REVIEW;
+
+    @Column(length = 255)
+    private String kycDocumentUrl;
+
+    @Column(nullable = false)
+    private int yearsOfExperience = 0;
 
     @Column(nullable = false)
     private double latitude;

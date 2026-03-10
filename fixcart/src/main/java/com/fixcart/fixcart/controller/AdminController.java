@@ -1,8 +1,10 @@
 package com.fixcart.fixcart.controller;
 
 import com.fixcart.fixcart.dto.AdminMetricsResponse;
+import com.fixcart.fixcart.dto.AuditLogResponse;
 import com.fixcart.fixcart.dto.BookingResponse;
 import com.fixcart.fixcart.dto.PaymentResponse;
+import com.fixcart.fixcart.dto.UpdateWorkerApprovalStatusRequest;
 import com.fixcart.fixcart.dto.UpdateWorkerAvailabilityRequest;
 import com.fixcart.fixcart.dto.WorkerResponse;
 import com.fixcart.fixcart.service.AdminService;
@@ -54,6 +56,14 @@ public class AdminController {
         return ResponseEntity.ok(adminService.updateWorkerAvailability(workerId, request));
     }
 
+    @PatchMapping("/workers/{workerId}/approval")
+    public ResponseEntity<WorkerResponse> workerApproval(
+            @PathVariable Long workerId,
+            @Valid @RequestBody UpdateWorkerApprovalStatusRequest request
+    ) {
+        return ResponseEntity.ok(adminService.updateWorkerApprovalStatus(workerId, request));
+    }
+
     @PostMapping("/bookings/{bookingId}/assign")
     public ResponseEntity<BookingResponse> assignWorker(@PathVariable Long bookingId) {
         return ResponseEntity.ok(bookingService.assignNearestWorker(bookingId));
@@ -62,5 +72,10 @@ public class AdminController {
     @GetMapping("/payments")
     public ResponseEntity<List<PaymentResponse>> payments() {
         return ResponseEntity.ok(paymentService.getAllPayments());
+    }
+
+    @GetMapping("/audit-logs")
+    public ResponseEntity<List<AuditLogResponse>> auditLogs() {
+        return ResponseEntity.ok(adminService.getAuditLogs());
     }
 }

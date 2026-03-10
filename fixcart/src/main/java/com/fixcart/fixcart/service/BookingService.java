@@ -5,6 +5,7 @@ import com.fixcart.fixcart.dto.CreateBookingRequest;
 import com.fixcart.fixcart.entity.Booking;
 import com.fixcart.fixcart.entity.User;
 import com.fixcart.fixcart.entity.Worker;
+import com.fixcart.fixcart.entity.enums.AuditActionType;
 import com.fixcart.fixcart.entity.enums.BookingStatus;
 import com.fixcart.fixcart.entity.enums.UserRole;
 import com.fixcart.fixcart.exception.BadRequestException;
@@ -12,6 +13,9 @@ import com.fixcart.fixcart.exception.ResourceNotFoundException;
 import com.fixcart.fixcart.repository.BookingRepository;
 import com.fixcart.fixcart.repository.UserRepository;
 import com.fixcart.fixcart.repository.WorkerRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,9 +30,16 @@ public class BookingService {
     private final UserRepository userRepository;
     private final WorkerRepository workerRepository;
     private final WorkerService workerService;
+    private final AuditLogService auditLogService;
 
     @Value("${fixcart.booking.assignment-radius-km}")
     private double assignmentRadiusKm;
+
+    @Value("${fixcart.booking.base-price:249}")
+    private BigDecimal basePrice;
+
+    @Value("${fixcart.booking.distance-price-per-km:12}")
+    private BigDecimal distancePricePerKm;
 
     @Transactional
     public BookingResponse createBooking(Long customerId, CreateBookingRequest request) {
@@ -41,7 +52,9 @@ public class BookingService {
         booking.setServiceAddress(request.serviceAddress());
         booking.setCustomerLatitude(request.customerLatitude());
         booking.setCustomerLongitude(request.customerLongitude());
+        booking.setScheduledAt(request.scheduledAt());
         booking.setNotes(request.notes());
+        booking.setEstimatedPrice(calculateEstimatedPrice(request.customerLatitude(), request.customerLongitude(), request.serviceType()));
         booking.setStatus(BookingStatus.PENDING);
 
         WorkerService.WorkerDistance nearest = findBestWorkerWithRadiusExpansion(
@@ -50,15 +63,23 @@ public class BookingService {
                 request.serviceType()
         );
 
-        if (nearest != null) {
+        if (nearest != null && request.scheduledAt() == null) {
             Worker worker = nearest.getWorker();
             worker.setAvailable(false);
             workerRepository.save(worker);
             booking.setWorker(worker);
             booking.setStatus(BookingStatus.ASSIGNED);
         }
-
-        return toResponse(bookingRepository.save(booking));
+        Booking saved = bookingRepository.save(booking);
+        auditLogService.record(
+                booking.getWorker() == null ? AuditActionType.BOOKING_CREATED : AuditActionType.BOOKING_ASSIGNED,
+                "USER",
+                customerId,
+                "BOOKING",
+                saved.getId(),
+                booking.getWorker() == null ? "Booking created in fixcart" : "Booking auto-assigned in fixcart"
+        );
+        return toResponse(saved);
     }
 
     public BookingResponse getBooking(Long bookingId, Long userId, UserRole role) {
@@ -107,11 +128,13 @@ public class BookingService {
 
         booking.setWorker(worker);
         booking.setStatus(BookingStatus.ASSIGNED);
-        return toResponse(bookingRepository.save(booking));
+        Booking saved = bookingRepository.save(booking);
+        auditLogService.record(AuditActionType.BOOKING_ASSIGNED, "ADMIN", null, "BOOKING", saved.getId(), "Booking assigned to nearest approved worker");
+        return toResponse(saved);
     }
 
     @Transactional
-    public BookingResponse updateStatus(Long bookingId, BookingStatus status, Long userId, UserRole role) {
+    public BookingResponse updateStatus(Long bookingId, BookingStatus status, String cancellationReason, Long userId, UserRole role) {
         Booking booking = findBookingOrThrow(bookingId);
         validateBookingAccess(booking, userId, role);
 
@@ -123,7 +146,12 @@ public class BookingService {
             throw new BadRequestException("Worker cannot cancel booking");
         }
 
+        if (status == BookingStatus.CANCELLED && (cancellationReason == null || cancellationReason.isBlank())) {
+            throw new BadRequestException("Cancellation reason is required");
+        }
+
         booking.setStatus(status);
+        booking.setCancellationReason(status == BookingStatus.CANCELLED ? cancellationReason : null);
         Booking saved = bookingRepository.save(booking);
 
         if (status == BookingStatus.COMPLETED || status == BookingStatus.CANCELLED) {
@@ -134,6 +162,7 @@ public class BookingService {
             }
         }
 
+        auditLogService.record(AuditActionType.BOOKING_STATUS_UPDATED, role.name(), userId, "BOOKING", saved.getId(), "Booking status changed to " + status);
         return toResponse(saved);
     }
 
@@ -162,11 +191,22 @@ public class BookingService {
                 booking.getServiceAddress(),
                 booking.getCustomerLatitude(),
                 booking.getCustomerLongitude(),
+                booking.getScheduledAt(),
                 booking.getNotes(),
+                booking.getEstimatedPrice(),
+                booking.getCancellationReason(),
                 booking.getStatus(),
                 booking.getCreatedAt(),
                 booking.getUpdatedAt()
         );
+    }
+
+    private BigDecimal calculateEstimatedPrice(double customerLatitude, double customerLongitude, com.fixcart.fixcart.entity.enums.WorkerType workerType) {
+        WorkerService.WorkerDistance nearest = workerService.findNearestWorker(customerLatitude, customerLongitude, workerType, assignmentRadiusKm * 2);
+        BigDecimal distanceCharge = nearest == null
+                ? BigDecimal.ZERO
+                : distancePricePerKm.multiply(BigDecimal.valueOf(nearest.getDistanceKm()));
+        return basePrice.add(distanceCharge).setScale(2, RoundingMode.HALF_UP);
     }
 
     private WorkerService.WorkerDistance findBestWorkerWithRadiusExpansion(

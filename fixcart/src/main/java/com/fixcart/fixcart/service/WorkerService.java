@@ -4,6 +4,7 @@ import com.fixcart.fixcart.dto.UpdateWorkerLocationRequest;
 import com.fixcart.fixcart.dto.WorkerResponse;
 import com.fixcart.fixcart.entity.Worker;
 import com.fixcart.fixcart.entity.enums.BookingStatus;
+import com.fixcart.fixcart.entity.enums.WorkerApprovalStatus;
 import com.fixcart.fixcart.entity.enums.WorkerType;
 import com.fixcart.fixcart.exception.ResourceNotFoundException;
 import com.fixcart.fixcart.repository.BookingRepository;
@@ -24,7 +25,7 @@ public class WorkerService {
     private final BookingRepository bookingRepository;
 
     public List<WorkerResponse> findNearbyWorkers(double latitude, double longitude, WorkerType workerType, double radiusKm) {
-        return workerRepository.findByAvailableTrueAndWorkerType(workerType).stream()
+        return workerRepository.findByAvailableTrueAndWorkerTypeAndApprovalStatus(workerType, WorkerApprovalStatus.APPROVED).stream()
                 .map(worker -> mapWorkerWithDistance(worker, latitude, longitude))
                 .filter(worker -> worker.distanceKm() <= radiusKm)
                 .sorted(Comparator.comparingDouble(WorkerResponse::distanceKm))
@@ -33,7 +34,7 @@ public class WorkerService {
 
     public WorkerDistance findNearestWorker(double latitude, double longitude, WorkerType workerType, double radiusKm) {
         List<BookingStatus> activeStatuses = Arrays.asList(BookingStatus.ASSIGNED, BookingStatus.IN_PROGRESS);
-        return workerRepository.findByAvailableTrueAndWorkerType(workerType).stream()
+        return workerRepository.findByAvailableTrueAndWorkerTypeAndApprovalStatus(workerType, WorkerApprovalStatus.APPROVED).stream()
                 .map(worker -> {
                     double distance = haversineKm(latitude, longitude, worker.getLatitude(), worker.getLongitude());
                     long activeBookings = bookingRepository.countByWorkerIdAndStatusIn(worker.getId(), activeStatuses);
@@ -63,6 +64,9 @@ public class WorkerService {
                 worker.getUser().getId(),
                 worker.getUser().getFullName(),
                 worker.getWorkerType(),
+                worker.getApprovalStatus(),
+                worker.getKycDocumentUrl(),
+                worker.getYearsOfExperience(),
                 worker.getLatitude(),
                 worker.getLongitude(),
                 worker.isAvailable(),

@@ -173,6 +173,8 @@ export default function WorkerDashboard() {
                 {booking.serviceType} - {booking.status}
               </p>
               <p>{booking.serviceAddress}</p>
+              <p>Estimated payout basis: {booking.estimatedPrice}</p>
+              {booking.scheduledAt && <p>Scheduled at: {new Date(booking.scheduledAt).toLocaleString()}</p>}
               <div className="action-row">
                 <button onClick={() => onStatusChange(booking.bookingId, "IN_PROGRESS")}>
                   Mark In Progress

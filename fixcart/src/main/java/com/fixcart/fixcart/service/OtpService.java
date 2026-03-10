@@ -2,10 +2,12 @@ package com.fixcart.fixcart.service;
 
 import com.fixcart.fixcart.dto.OtpStatusResponse;
 import com.fixcart.fixcart.entity.OtpVerification;
+import com.fixcart.fixcart.entity.enums.AuditActionType;
 import com.fixcart.fixcart.entity.enums.OtpPurpose;
 import com.fixcart.fixcart.exception.BadRequestException;
 import com.fixcart.fixcart.repository.OtpVerificationRepository;
 import com.fixcart.fixcart.service.sms.SmsDispatchService;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Random;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,8 @@ public class OtpService {
 
     private final OtpVerificationRepository otpVerificationRepository;
     private final SmsDispatchService smsDispatchService;
+    private final RequestRateLimitService requestRateLimitService;
+    private final AuditLogService auditLogService;
     private final Random random = new Random();
 
     @Value("${fixcart.otp.expiration-minutes:5}")
@@ -34,6 +38,7 @@ public class OtpService {
 
     @Transactional
     public OtpStatusResponse sendOtp(String phone, OtpPurpose purpose) {
+        requestRateLimitService.assertAllowed("otp:send:" + phone, 5, Duration.ofMinutes(15));
         String otpCode = String.format("%06d", random.nextInt(1_000_000));
         OtpVerification otp = new OtpVerification();
         otp.setPhone(phone);
@@ -45,6 +50,7 @@ public class OtpService {
         otp.setAttempts(0);
         otpVerificationRepository.save(otp);
         smsDispatchService.sendOtp(phone, "Your fixcart OTP is " + otpCode + ". It expires in " + otpExpirationMinutes + " minutes.");
+        auditLogService.record(AuditActionType.OTP_SENT, "SYSTEM", null, "OTP", otp.getId(), "OTP sent for phone " + phone + " purpose " + purpose);
 
         log.info("fixcart OTP generated phone={} purpose={} otp={}", phone, purpose, otpCode);
         return new OtpStatusResponse(
@@ -56,6 +62,7 @@ public class OtpService {
 
     @Transactional
     public OtpStatusResponse verifyOtp(String phone, OtpPurpose purpose, String otpCode) {
+        requestRateLimitService.assertAllowed("otp:verify:" + phone, 10, Duration.ofMinutes(15));
         OtpVerification otp = otpVerificationRepository.findFirstByPhoneAndPurposeOrderByCreatedAtDesc(phone, purpose)
                 .orElseThrow(() -> new BadRequestException("No OTP found. Please request a new OTP."));
 
@@ -79,6 +86,7 @@ public class OtpService {
 
         otp.setVerified(true);
         otpVerificationRepository.save(otp);
+        auditLogService.record(AuditActionType.OTP_VERIFIED, "SYSTEM", null, "OTP", otp.getId(), "OTP verified for phone " + phone + " purpose " + purpose);
         return new OtpStatusResponse(true, "OTP verified successfully", null);
     }
 

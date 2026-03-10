@@ -112,3 +112,11 @@ export function getAdminBookings(token) {
 export function updateAdminWorkerAvailability(workerId, payload, token) {
   return request(`/api/admin/workers/${workerId}/availability`, "PATCH", payload, token);
 }
+
+export function updateAdminWorkerApproval(workerId, payload, token) {
+  return request(`/api/admin/workers/${workerId}/approval`, "PATCH", payload, token);
+}
+
+export function getAdminAuditLogs(token) {
+  return request("/api/admin/audit-logs", "GET", undefined, token);
+}
