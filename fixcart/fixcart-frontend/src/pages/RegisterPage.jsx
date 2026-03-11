@@ -66,12 +66,18 @@ export default function RegisterPage() {
   const onSendOtp = async () => {
     setError("");
     setInfo("");
-    if (!form.phone) {
+    const normalizedPhone = form.phone.replace(/\D/g, "");
+    if (!normalizedPhone) {
       setError("Enter phone number first");
       return;
     }
+    if (!/^[0-9]{10,15}$/.test(normalizedPhone)) {
+      setError("Phone number must contain 10 to 15 digits.");
+      return;
+    }
     try {
-      const data = await sendOtp({ phone: form.phone, purpose: "REGISTER" });
+      const data = await sendOtp({ phone: normalizedPhone, purpose: "REGISTER" });
+      setForm((current) => ({ ...current, phone: normalizedPhone }));
       setInfo(`OTP sent. ${data.debugOtp ? `Dev OTP: ${data.debugOtp}` : "Check SMS inbox."}`);
     } catch (err) {
       setError(err.message);
@@ -81,8 +87,20 @@ export default function RegisterPage() {
   const onVerifyOtp = async () => {
     setError("");
     setInfo("");
+    const normalizedPhone = form.phone.replace(/\D/g, "");
+    const normalizedOtp = otpCode.replace(/\D/g, "");
+    if (!/^[0-9]{10,15}$/.test(normalizedPhone)) {
+      setError("Enter the same valid phone number used for OTP send.");
+      return;
+    }
+    if (!/^[0-9]{6}$/.test(normalizedOtp)) {
+      setError("OTP must be exactly 6 digits.");
+      return;
+    }
     try {
-      await verifyOtp({ phone: form.phone, purpose: "REGISTER", otpCode });
+      await verifyOtp({ phone: normalizedPhone, purpose: "REGISTER", otpCode: normalizedOtp });
+      setForm((current) => ({ ...current, phone: normalizedPhone }));
+      setOtpCode(normalizedOtp);
       setOtpVerified(true);
       setInfo("OTP verified. You can now register.");
     } catch (err) {
@@ -143,7 +161,7 @@ export default function RegisterPage() {
             placeholder="Phone (10-15 digits)"
             value={form.phone}
             onChange={(e) => {
-              setForm({ ...form, phone: e.target.value });
+              setForm({ ...form, phone: e.target.value.replace(/\D/g, "") });
               setOtpVerified(false);
             }}
             required
@@ -156,7 +174,7 @@ export default function RegisterPage() {
               type="text"
               placeholder="Enter OTP"
               value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value)}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
             />
             <button type="button" onClick={onVerifyOtp}>
               Verify OTP

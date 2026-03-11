@@ -41,6 +41,7 @@ export default function LocationPicker({
     if (hasLocation) return [latitude, longitude];
     return [18.5204, 73.8567];
   }, [hasLocation, latitude, longitude]);
+  const mapKey = hasLocation ? `${latitude}-${longitude}-${zoom}` : `default-${zoom}`;
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -89,7 +90,7 @@ export default function LocationPicker({
         </div>
       </div>
 
-      <MapContainer center={center} zoom={zoom} scrollWheelZoom style={{ height: "240px", width: "100%" }}>
+      <MapContainer key={mapKey} center={center} zoom={zoom} scrollWheelZoom style={{ height: "240px", width: "100%" }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

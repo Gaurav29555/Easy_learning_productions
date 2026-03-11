@@ -72,6 +72,10 @@ export default function WorkerDashboard() {
     event.preventDefault();
     setError("");
     setInfo("");
+    if (!trackingForm.bookingId || Number.isNaN(Number(trackingForm.bookingId))) {
+      setError("Enter a valid booking ID before publishing tracking.");
+      return;
+    }
     try {
       const eventData = await publishTracking(
         Number(trackingForm.bookingId),
@@ -92,6 +96,10 @@ export default function WorkerDashboard() {
 
   const onLoadTracking = async () => {
     setError("");
+    if (!trackingForm.bookingId || Number.isNaN(Number(trackingForm.bookingId))) {
+      setError("Enter a valid booking ID before loading tracking.");
+      return;
+    }
     try {
       const data = await getTrackingEvents(Number(trackingForm.bookingId), auth.token);
       setTrackingEvents(data);
@@ -126,7 +134,7 @@ export default function WorkerDashboard() {
           <input
             placeholder="Booking ID"
             value={trackingForm.bookingId}
-            onChange={(e) => setTrackingForm({ ...trackingForm, bookingId: e.target.value })}
+            onChange={(e) => setTrackingForm({ ...trackingForm, bookingId: e.target.value.replace(/\D/g, "") })}
             required
           />
           <input

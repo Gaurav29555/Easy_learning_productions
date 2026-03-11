@@ -152,6 +152,10 @@ export default function CustomerDashboard() {
 
   const onFetchTracking = async () => {
     setError("");
+    if (!trackingBookingId || Number.isNaN(Number(trackingBookingId))) {
+      setError("Enter a valid booking ID before loading tracking.");
+      return;
+    }
     try {
       const data = await getTrackingEvents(Number(trackingBookingId), auth.token);
       setTrackingEvents(data);
@@ -360,7 +364,7 @@ export default function CustomerDashboard() {
           <input
             placeholder="Booking ID"
             value={trackingBookingId}
-            onChange={(e) => setTrackingBookingId(e.target.value)}
+            onChange={(e) => setTrackingBookingId(e.target.value.replace(/\D/g, ""))}
           />
           <button type="button" onClick={onFetchTracking}>
             Fetch Tracking

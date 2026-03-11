@@ -44,12 +44,14 @@ export default function LiveTrackingMap({ bookingId, initialEvents = [], onLiveE
 
   const path = useMemo(() => normalizeEvents(events), [events]);
   const latest = events.length > 0 ? events[0] : null;
-
   const center = latest ? [latest.latitude, latest.longitude] : [20.5937, 78.9629];
+  const mapKey = latest
+    ? `tracking-${bookingId}-${latest.latitude}-${latest.longitude}`
+    : `tracking-${bookingId || "empty"}`;
 
   return (
     <div className="map-shell">
-      <MapContainer center={center} zoom={13} scrollWheelZoom style={{ height: "320px", width: "100%" }}>
+      <MapContainer key={mapKey} center={center} zoom={13} scrollWheelZoom style={{ height: "320px", width: "100%" }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
