@@ -1,20 +1,20 @@
 # fixcart backend
 
-Spring Boot backend for a service marketplace platform (like Uber for plumbers and carpenters).
+Spring Boot backend for the `fixcart` on-demand home services marketplace.
 
 ## Tech stack
 - Java 17
 - Spring Boot 3
 - Spring Web, Spring Security, Spring Data JPA
-- Oracle Database
+- PostgreSQL
 - JWT authentication
 
 ## Run configuration
-Set environment variables (optional, defaults are provided in `application.properties`):
+Set environment variables if needed. Defaults are provided in `application.properties`.
 
-- `FIXCART_ORACLE_URL` (default `jdbc:oracle:thin:@localhost:1521/ORCLPDB`)
-- `FIXCART_ORACLE_USERNAME` (default `FIXCART`)
-- `FIXCART_ORACLE_PASSWORD` (default `gk1372`)
+- `FIXCART_DATABASE_URL` (default `jdbc:postgresql://localhost:5432/fixcart`)
+- `FIXCART_DATABASE_USERNAME` (default `postgres`)
+- `FIXCART_DATABASE_PASSWORD` (default `postgres`)
 - `FIXCART_SMS_PROVIDER` (`MOCK`, `TWILIO`, `FAST2SMS`)
 - `FIXCART_TWILIO_ACCOUNT_SID`, `FIXCART_TWILIO_AUTH_TOKEN`, `FIXCART_TWILIO_FROM_NUMBER`
 - `FIXCART_FAST2SMS_API_KEY`, `FIXCART_FAST2SMS_ROUTE`, `FIXCART_FAST2SMS_SENDER_ID`
@@ -24,32 +24,17 @@ Set environment variables (optional, defaults are provided in `application.prope
 - `FIXCART_JWT_EXPIRATION_MILLIS` (default `86400000`)
 - `FIXCART_ASSIGNMENT_RADIUS_KM` (default `20`)
 
-## SQL*Plus database setup (Oracle)
-Run these commands in SQL*Plus.
+## Local PostgreSQL setup
+1. Install PostgreSQL.
+2. Create a database:
 
-1. Connect as SYSDBA:
 ```sql
-sqlplus / as sysdba
-```
-If needed:
-```sql
-sqlplus sys/<SYS_PASSWORD>@localhost:1521/XEPDB1 as sysdba
+CREATE DATABASE fixcart;
 ```
 
-2. Create fixcart user/schema:
-```sql
-CREATE USER FIXCART IDENTIFIED BY fixcart_password;
-GRANT CONNECT, RESOURCE TO FIXCART;
-ALTER USER FIXCART QUOTA UNLIMITED ON USERS;
-```
+3. If you want to use the default local credentials from `application.properties`, create/update a local user accordingly, or override with env vars.
 
-3. Verify login with app user:
-```sql
-CONNECT FIXCART/fixcart_password@localhost:1521/XEPDB1;
-SELECT USER FROM dual;
-```
-
-Tables are auto-created by Spring Boot (`spring.jpa.hibernate.ddl-auto=update`) when app starts.
+Tables are auto-created by Spring Boot (`spring.jpa.hibernate.ddl-auto=update`) when the app starts.
 
 ## Run
 ```bash
@@ -66,9 +51,9 @@ Health check:
 ```bash
 docker build -t fixcart-backend .
 docker run -p 8080:8080 \
-  -e FIXCART_ORACLE_URL=jdbc:oracle:thin:@<host>:1521/<service> \
-  -e FIXCART_ORACLE_USERNAME=FIXCART \
-  -e FIXCART_ORACLE_PASSWORD=<password> \
+  -e FIXCART_DATABASE_URL=jdbc:postgresql://<host>:5432/<database> \
+  -e FIXCART_DATABASE_USERNAME=<username> \
+  -e FIXCART_DATABASE_PASSWORD=<password> \
   fixcart-backend
 ```
 

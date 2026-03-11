@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: fixcart-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: FIXCART_DATABASE_URL
+        sync: false
+      - key: FIXCART_DATABASE_USERNAME
+        sync: false
+      - key: FIXCART_DATABASE_PASSWORD
+        sync: false
+      - key: FIXCART_JWT_SECRET
+        sync: false
+      - key: FIXCART_CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: FIXCART_SMS_PROVIDER
+        value: MOCK
+      - key: FIXCART_OTP_EXPOSE_IN_RESPONSE
+        value: "false"
+      - key: FIXCART_ADMIN_BOOTSTRAP_ENABLED
+        value: "false"

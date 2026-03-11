@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+fixcart-frontend/node_modules/
+fixcart-frontend/dist/
+.env
+.env.*
+!.env.example
