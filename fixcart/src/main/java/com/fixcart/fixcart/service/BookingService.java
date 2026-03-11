@@ -31,6 +31,7 @@ public class BookingService {
     private final WorkerRepository workerRepository;
     private final WorkerService workerService;
     private final AuditLogService auditLogService;
+    private final BookingRealtimeService bookingRealtimeService;
 
     @Value("${fixcart.booking.assignment-radius-km}")
     private double assignmentRadiusKm;
@@ -79,6 +80,11 @@ public class BookingService {
                 saved.getId(),
                 booking.getWorker() == null ? "Booking created in fixcart" : "Booking auto-assigned in fixcart"
         );
+        bookingRealtimeService.publish(
+                booking.getWorker() == null ? "BOOKING_CREATED" : "BOOKING_ASSIGNED",
+                booking.getWorker() == null ? "Fixcart created a new booking request." : "Fixcart assigned a worker to the booking.",
+                saved
+        );
         return toResponse(saved);
     }
 
@@ -119,7 +125,9 @@ public class BookingService {
         if (nearest == null) {
             booking.setWorker(null);
             booking.setStatus(BookingStatus.PENDING);
-            return toResponse(bookingRepository.save(booking));
+            Booking saved = bookingRepository.save(booking);
+            bookingRealtimeService.publish("BOOKING_PENDING", "Fixcart could not find an available worker yet.", saved);
+            return toResponse(saved);
         }
 
         Worker worker = nearest.getWorker();
@@ -130,6 +138,7 @@ public class BookingService {
         booking.setStatus(BookingStatus.ASSIGNED);
         Booking saved = bookingRepository.save(booking);
         auditLogService.record(AuditActionType.BOOKING_ASSIGNED, "ADMIN", null, "BOOKING", saved.getId(), "Booking assigned to nearest approved worker");
+        bookingRealtimeService.publish("BOOKING_ASSIGNED", "Fixcart assigned a worker to the booking.", saved);
         return toResponse(saved);
     }
 
@@ -163,6 +172,7 @@ public class BookingService {
         }
 
         auditLogService.record(AuditActionType.BOOKING_STATUS_UPDATED, role.name(), userId, "BOOKING", saved.getId(), "Booking status changed to " + status);
+        bookingRealtimeService.publish("BOOKING_STATUS_UPDATED", "Booking status changed to " + status + " in fixcart.", saved);
         return toResponse(saved);
     }
 

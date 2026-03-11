@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client/dist/sockjs";
 import {
   getTrackingEvents,
   getWorkerBookings,
@@ -9,6 +11,9 @@ import {
 import LiveTrackingMap from "../components/LiveTrackingMap";
 import LocationPicker from "../components/LocationPicker";
 import { useAuth } from "../context/AuthContext";
+
+const FIXCART_API_BASE_URL =
+  import.meta.env.VITE_FIXCART_API_URL || "http://localhost:8080";
 
 export default function WorkerDashboard() {
   const { auth } = useAuth();
@@ -37,6 +42,31 @@ export default function WorkerDashboard() {
   useEffect(() => {
     loadBookings();
   }, []);
+
+  useEffect(() => {
+    const client = new Client({
+      webSocketFactory: () => new SockJS(`${FIXCART_API_BASE_URL}/ws-fixcart`),
+      reconnectDelay: 3000
+    });
+
+    client.onConnect = () => {
+      client.subscribe(`/topic/worker/${auth.userId}/bookings`, (message) => {
+        const payload = JSON.parse(message.body);
+        const incoming = payload.booking;
+        setBookings((prev) => {
+          const existingIndex = prev.findIndex((booking) => booking.bookingId === incoming.bookingId);
+          if (existingIndex === -1) return [incoming, ...prev];
+          const clone = prev.slice();
+          clone[existingIndex] = incoming;
+          return clone;
+        });
+        setInfo(payload.message);
+      });
+    };
+
+    client.activate();
+    return () => client.deactivate();
+  }, [auth.userId]);
 
   const onUpdateLocation = async (event) => {
     event.preventDefault();

@@ -52,6 +52,14 @@ export function verifyOtp(payload) {
   return request("/api/auth/otp/verify", "POST", payload);
 }
 
+export function getServiceCatalog() {
+  return request("/api/catalog/services", "GET");
+}
+
+export function executeVoiceCommand(payload, token) {
+  return request("/api/voice/commands", "POST", payload, token);
+}
+
 export function findNearbyWorkers(params, token) {
   const search = new URLSearchParams(params);
   return request(`/api/workers/nearby?${search.toString()}`, "GET", undefined, token);

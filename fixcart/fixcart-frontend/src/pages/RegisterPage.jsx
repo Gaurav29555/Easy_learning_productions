@@ -189,6 +189,11 @@ export default function RegisterPage() {
               >
                 <option value="PLUMBER">PLUMBER</option>
                 <option value="CARPENTER">CARPENTER</option>
+                <option value="ELECTRICIAN">ELECTRICIAN</option>
+                <option value="CLEANER">CLEANER</option>
+                <option value="AC_REPAIR">AC_REPAIR</option>
+                <option value="APPLIANCE_REPAIR">APPLIANCE_REPAIR</option>
+                <option value="PAINTER">PAINTER</option>
               </select>
               <input
                 type="url"

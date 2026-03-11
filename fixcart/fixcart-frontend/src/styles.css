@@ -301,6 +301,71 @@ textarea:focus {
   font-size: 0.9rem;
 }
 
+.voice-assistant {
+  background:
+    radial-gradient(circle at top right, rgba(22, 164, 109, 0.15), transparent 30%),
+    linear-gradient(145deg, #f8fffb 0%, #ffffff 55%);
+}
+
+.voice-assistant-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.voice-assistant-head h2 {
+  margin: 0 0 6px;
+}
+
+.assistant-response {
+  margin-top: 12px;
+  border: 1px solid #d7e6dd;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fbfffd;
+}
+
+.assistant-response p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.service-tile {
+  border: 1px solid #dce7df;
+  border-radius: 14px;
+  padding: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fcf8 100%);
+}
+
+.service-tile p {
+  color: var(--muted);
+  min-height: 48px;
+}
+
+.service-tile span,
+.service-tile small {
+  display: block;
+}
+
+.service-tile span {
+  margin-top: 8px;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.service-tile small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
 .location-picker {
   border: 1px solid #d7e6dd;
   border-radius: 12px;
@@ -346,6 +411,10 @@ textarea:focus {
   }
 
   .location-values {
+    flex-direction: column;
+  }
+
+  .voice-assistant-head {
     flex-direction: column;
   }
 }

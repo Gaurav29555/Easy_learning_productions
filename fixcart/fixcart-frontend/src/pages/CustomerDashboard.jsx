@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client/dist/sockjs";
 import {
   confirmPayment,
   createBooking,
   createPaymentOrder,
+  getServiceCatalog,
   findNearbyWorkers,
   getMyBookings,
   getMyPayments,
@@ -11,12 +14,17 @@ import {
 } from "../api/fixcartApi";
 import LiveTrackingMap from "../components/LiveTrackingMap";
 import LocationPicker from "../components/LocationPicker";
+import VoiceAssistant from "../components/VoiceAssistant";
 import { useAuth } from "../context/AuthContext";
+
+const FIXCART_API_BASE_URL =
+  import.meta.env.VITE_FIXCART_API_URL || "http://localhost:8080";
 
 export default function CustomerDashboard() {
   const { auth } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [catalog, setCatalog] = useState([]);
   const [trackingEvents, setTrackingEvents] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -47,6 +55,10 @@ export default function CustomerDashboard() {
     longitude: null,
     radiusKm: 20
   });
+  const serviceOptions = useMemo(
+    () => catalog.map((item) => item.workerType),
+    [catalog]
+  );
 
   const loadBookings = async () => {
     setLoadingBookings(true);
@@ -64,7 +76,33 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     loadBookings();
+    getServiceCatalog().then(setCatalog).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const client = new Client({
+      webSocketFactory: () => new SockJS(`${FIXCART_API_BASE_URL}/ws-fixcart`),
+      reconnectDelay: 3000
+    });
+
+    client.onConnect = () => {
+      client.subscribe(`/topic/customer/${auth.userId}/bookings`, (message) => {
+        const payload = JSON.parse(message.body);
+        const incoming = payload.booking;
+        setBookings((prev) => {
+          const existingIndex = prev.findIndex((booking) => booking.bookingId === incoming.bookingId);
+          if (existingIndex === -1) return [incoming, ...prev];
+          const clone = prev.slice();
+          clone[existingIndex] = incoming;
+          return clone;
+        });
+        setInfo(payload.message);
+      });
+    };
+
+    client.activate();
+    return () => client.deactivate();
+  }, [auth.userId]);
 
   const onCreateBooking = async (event) => {
     event.preventDefault();
@@ -181,6 +219,35 @@ export default function CustomerDashboard() {
 
   return (
     <main className="dashboard-layout">
+      <VoiceAssistant
+        onCommandResult={(response) => {
+          if (response.booking) {
+            setBookings((prev) => [response.booking, ...prev.filter((item) => item.bookingId !== response.booking.bookingId)]);
+            setSelectedBookingIdForMap(String(response.booking.bookingId));
+            setTrackingBookingId(String(response.booking.bookingId));
+          }
+          if (response.workers) {
+            setWorkers(response.workers);
+          }
+          setInfo(response.spokenResponse);
+        }}
+      />
+
+      <section className="card">
+        <h2>Service Catalog</h2>
+        <div className="service-grid">
+          {catalog.map((item) => (
+            <article className="service-tile" key={item.workerType}>
+              <strong>{item.title}</strong>
+              <p>{item.description}</p>
+              <span>From {item.startingPrice}</span>
+              <small>{item.etaLabel}</small>
+            </article>
+          ))}
+          {catalog.length === 0 && <p className="muted">Loading service catalog...</p>}
+        </div>
+      </section>
+
       <section className="card">
         <h2>Book a Service</h2>
         {error && <div className="error-box">{error}</div>}
@@ -190,8 +257,11 @@ export default function CustomerDashboard() {
             value={bookingForm.serviceType}
             onChange={(e) => setBookingForm({ ...bookingForm, serviceType: e.target.value })}
           >
-            <option value="PLUMBER">PLUMBER</option>
-            <option value="CARPENTER">CARPENTER</option>
+            {(serviceOptions.length > 0 ? serviceOptions : ["PLUMBER", "CARPENTER", "ELECTRICIAN", "CLEANER", "AC_REPAIR", "APPLIANCE_REPAIR", "PAINTER"]).map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
           </select>
           <input
             placeholder="Service Address"
@@ -232,8 +302,11 @@ export default function CustomerDashboard() {
             value={nearbyForm.workerType}
             onChange={(e) => setNearbyForm({ ...nearbyForm, workerType: e.target.value })}
           >
-            <option value="PLUMBER">PLUMBER</option>
-            <option value="CARPENTER">CARPENTER</option>
+            {(serviceOptions.length > 0 ? serviceOptions : ["PLUMBER", "CARPENTER", "ELECTRICIAN", "CLEANER", "AC_REPAIR", "APPLIANCE_REPAIR", "PAINTER"]).map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
           </select>
           <input
             type="number"
