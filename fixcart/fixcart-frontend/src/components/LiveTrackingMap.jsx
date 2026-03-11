@@ -14,7 +14,7 @@ function normalizeEvents(trackingEvents) {
     .map((event) => [event.latitude, event.longitude]);
 }
 
-export default function LiveTrackingMap({ bookingId, initialEvents = [], onLiveEvent }) {
+export default function LiveTrackingMap({ bookingId, initialEvents = [], routePoints = [], onLiveEvent }) {
   const [events, setEvents] = useState(initialEvents);
 
   useEffect(() => {
@@ -48,6 +48,10 @@ export default function LiveTrackingMap({ bookingId, initialEvents = [], onLiveE
   const mapKey = latest
     ? `tracking-${bookingId}-${latest.latitude}-${latest.longitude}`
     : `tracking-${bookingId || "empty"}`;
+  const routePolyline = useMemo(
+    () => routePoints.map((point) => [point.latitude, point.longitude]),
+    [routePoints]
+  );
 
   return (
     <div className="map-shell">
@@ -64,10 +68,14 @@ export default function LiveTrackingMap({ bookingId, initialEvents = [], onLiveE
           </Marker>
         )}
         {path.length > 1 && <Polyline positions={path} color="#158f63" />}
+        {routePolyline.length > 1 && <Polyline positions={routePolyline} color="#ff8c42" dashArray="6 8" />}
       </MapContainer>
       <div className="map-meta">
         <strong>Booking #{bookingId || "-"}</strong>
-        <span>{events.length} location points</span>
+        <span>
+          {events.length} location points
+          {latest?.etaMinutes ? ` | ETA ${latest.etaMinutes} min` : ""}
+        </span>
       </div>
     </div>
   );

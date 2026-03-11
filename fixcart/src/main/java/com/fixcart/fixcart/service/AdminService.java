@@ -3,6 +3,7 @@ package com.fixcart.fixcart.service;
 import com.fixcart.fixcart.dto.AdminMetricsResponse;
 import com.fixcart.fixcart.dto.AuditLogResponse;
 import com.fixcart.fixcart.dto.BookingResponse;
+import com.fixcart.fixcart.dto.ServiceDemandMetric;
 import com.fixcart.fixcart.dto.UpdateWorkerApprovalStatusRequest;
 import com.fixcart.fixcart.dto.UpdateWorkerAvailabilityRequest;
 import com.fixcart.fixcart.dto.WorkerResponse;
@@ -12,11 +13,15 @@ import com.fixcart.fixcart.entity.enums.BookingStatus;
 import com.fixcart.fixcart.entity.enums.PaymentStatus;
 import com.fixcart.fixcart.entity.enums.UserRole;
 import com.fixcart.fixcart.entity.enums.WorkerApprovalStatus;
+import com.fixcart.fixcart.entity.enums.WorkerType;
 import com.fixcart.fixcart.exception.ResourceNotFoundException;
 import com.fixcart.fixcart.repository.BookingRepository;
 import com.fixcart.fixcart.repository.PaymentRepository;
 import com.fixcart.fixcart.repository.UserRepository;
 import com.fixcart.fixcart.repository.WorkerRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,14 +40,46 @@ public class AdminService {
     private final AuditLogService auditLogService;
 
     public AdminMetricsResponse getMetrics() {
+        long totalCustomers = userRepository.countByRole(UserRole.CUSTOMER);
+        long totalWorkers = userRepository.countByRole(UserRole.WORKER);
+        long availableWorkers = workerRepository.countByAvailableTrue();
+        long totalBookings = bookingRepository.count();
+        long completedBookings = bookingRepository.countByStatus(BookingStatus.COMPLETED);
+        long cancelledBookings = bookingRepository.countByStatus(BookingStatus.CANCELLED);
+        long successfulPayments = paymentRepository.countByStatus(PaymentStatus.SUCCESS);
+        long activeBookings = bookingRepository.countByStatusIn(List.of(BookingStatus.ASSIGNED, BookingStatus.IN_PROGRESS));
+        long pendingWorkerApprovals = workerRepository.countByApprovalStatus(WorkerApprovalStatus.PENDING_REVIEW);
+        long assignedBookings = bookingRepository.countByWorkerIsNotNull();
+        BigDecimal gmv = paymentRepository.sumSuccessfulPayments();
+        BigDecimal averageOrderValue = successfulPayments == 0
+                ? BigDecimal.ZERO
+                : gmv.divide(BigDecimal.valueOf(successfulPayments), 2, RoundingMode.HALF_UP);
+        double completionRate = totalBookings == 0 ? 0 : (completedBookings * 100.0) / totalBookings;
+        double cancellationRate = totalBookings == 0 ? 0 : (cancelledBookings * 100.0) / totalBookings;
+        double workerUtilizationRate = totalWorkers == 0 ? 0 : (activeBookings * 100.0) / totalWorkers;
+        double assignmentRate = totalBookings == 0 ? 0 : (assignedBookings * 100.0) / totalBookings;
+        List<ServiceDemandMetric> serviceDemand = Arrays.stream(WorkerType.values())
+                .map(type -> new ServiceDemandMetric(type.name(), bookingRepository.countByServiceType(type)))
+                .sorted((left, right) -> Long.compare(right.totalBookings(), left.totalBookings()))
+                .toList();
+
         return new AdminMetricsResponse(
-                userRepository.countByRole(UserRole.CUSTOMER),
-                userRepository.countByRole(UserRole.WORKER),
-                workerRepository.countByAvailableTrue(),
-                bookingRepository.count(),
-                bookingRepository.countByStatus(BookingStatus.COMPLETED),
-                bookingRepository.countByStatus(BookingStatus.CANCELLED),
-                paymentRepository.countByStatus(PaymentStatus.SUCCESS)
+                totalCustomers,
+                totalWorkers,
+                availableWorkers,
+                totalBookings,
+                completedBookings,
+                cancelledBookings,
+                successfulPayments,
+                activeBookings,
+                pendingWorkerApprovals,
+                gmv,
+                averageOrderValue,
+                completionRate,
+                cancellationRate,
+                workerUtilizationRate,
+                assignmentRate,
+                serviceDemand
         );
     }
 

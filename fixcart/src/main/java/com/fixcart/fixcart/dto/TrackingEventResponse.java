@@ -8,6 +8,8 @@ public record TrackingEventResponse(
         double latitude,
         double longitude,
         double speedKmh,
+        double distanceToDestinationKm,
+        long etaMinutes,
         LocalDateTime createdAt
 ) {
 }

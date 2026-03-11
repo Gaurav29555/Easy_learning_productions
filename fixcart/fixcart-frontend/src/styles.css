@@ -272,6 +272,10 @@ textarea:focus {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.founder-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
 .stat-box {
   background: #f8fcf9;
   border: 1px solid #dce7df;
@@ -364,6 +368,50 @@ textarea:focus {
 .service-tile small {
   margin-top: 4px;
   color: var(--muted);
+}
+
+.notification-center {
+  position: relative;
+}
+
+.notification-trigger {
+  position: relative;
+}
+
+.notification-badge {
+  margin-left: 6px;
+  background: #ef5f51;
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 0.75rem;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(360px, 90vw);
+  max-height: 480px;
+  overflow: auto;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  z-index: 40;
+}
+
+.notification-panel h3 {
+  margin-top: 0;
+}
+
+.notification-item {
+  background: #fdfefd;
+}
+
+.notification-read {
+  opacity: 0.72;
 }
 
 .location-picker {

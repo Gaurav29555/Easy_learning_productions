@@ -60,20 +60,41 @@ export default function AdminDashboard() {
   return (
     <main className="dashboard-layout">
       <section className="card full-width">
-        <h2>Admin Metrics</h2>
+        <h2>Founder Ops Pulse</h2>
         {error && <div className="error-box">{error}</div>}
         {metrics ? (
-          <div className="stats-grid">
+          <div className="stats-grid founder-grid">
             <div className="stat-box">Customers: {metrics.totalCustomers}</div>
             <div className="stat-box">Workers: {metrics.totalWorkers}</div>
             <div className="stat-box">Available: {metrics.availableWorkers}</div>
             <div className="stat-box">Bookings: {metrics.totalBookings}</div>
             <div className="stat-box">Completed: {metrics.completedBookings}</div>
             <div className="stat-box">Payments: {metrics.successfulPayments}</div>
+            <div className="stat-box">Active Jobs: {metrics.activeBookings}</div>
+            <div className="stat-box">Pending Approvals: {metrics.pendingWorkerApprovals}</div>
+            <div className="stat-box">GMV: {metrics.grossMerchandiseValue}</div>
+            <div className="stat-box">Avg Order: {metrics.averageOrderValue}</div>
+            <div className="stat-box">Completion Rate: {metrics.completionRate.toFixed(1)}%</div>
+            <div className="stat-box">Cancellation Rate: {metrics.cancellationRate.toFixed(1)}%</div>
+            <div className="stat-box">Worker Utilization: {metrics.workerUtilizationRate.toFixed(1)}%</div>
+            <div className="stat-box">Assignment Rate: {metrics.assignmentRate.toFixed(1)}%</div>
           </div>
         ) : (
           <p>Loading metrics...</p>
         )}
+      </section>
+
+      <section className="card">
+        <h2>Top Service Demand</h2>
+        <div className="list">
+          {metrics?.topServiceDemand?.map((item) => (
+            <article key={item.serviceType} className="list-item">
+              <strong>{item.serviceType}</strong>
+              <p>{item.totalBookings} bookings</p>
+            </article>
+          ))}
+          {!metrics?.topServiceDemand?.length && <p className="muted">No service demand data yet.</p>}
+        </div>
       </section>
 
       <section className="card">

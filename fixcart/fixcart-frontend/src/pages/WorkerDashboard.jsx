@@ -3,6 +3,7 @@ import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client/dist/sockjs";
 import {
   getTrackingEvents,
+  getRouteSimulation,
   getWorkerBookings,
   publishTracking,
   updateBookingStatus,
@@ -21,6 +22,7 @@ export default function WorkerDashboard() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [trackingEvents, setTrackingEvents] = useState([]);
+  const [routeSimulation, setRouteSimulation] = useState(null);
   const [selectedBookingIdForMap, setSelectedBookingIdForMap] = useState("");
   const [locationForm, setLocationForm] = useState({ latitude: null, longitude: null });
   const [trackingForm, setTrackingForm] = useState({
@@ -132,7 +134,9 @@ export default function WorkerDashboard() {
     }
     try {
       const data = await getTrackingEvents(Number(trackingForm.bookingId), auth.token);
+      const route = await getRouteSimulation(Number(trackingForm.bookingId), auth.token);
       setTrackingEvents(data);
+      setRouteSimulation(route);
       setSelectedBookingIdForMap(String(trackingForm.bookingId));
     } catch (err) {
       setError(err.message);
@@ -193,8 +197,14 @@ export default function WorkerDashboard() {
           <LiveTrackingMap
             bookingId={selectedBookingIdForMap}
             initialEvents={trackingEvents}
+            routePoints={routeSimulation?.routePoints ?? []}
             onLiveEvent={(event) => setTrackingEvents((prev) => [event, ...prev].slice(0, 200))}
           />
+        )}
+        {routeSimulation && (
+          <p className="muted">
+            Remaining route: {routeSimulation.totalDistanceKm.toFixed(2)} km | ETA {routeSimulation.etaMinutes} min
+          </p>
         )}
       </section>
 

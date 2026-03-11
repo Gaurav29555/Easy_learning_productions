@@ -105,6 +105,10 @@ export function getTrackingEvents(bookingId, token) {
   return request(`/api/tracking/bookings/${bookingId}/events`, "GET", undefined, token);
 }
 
+export function getRouteSimulation(bookingId, token) {
+  return request(`/api/tracking/bookings/${bookingId}/route`, "GET", undefined, token);
+}
+
 export function getAdminMetrics(token) {
   return request("/api/admin/metrics", "GET", undefined, token);
 }
@@ -127,4 +131,16 @@ export function updateAdminWorkerApproval(workerId, payload, token) {
 
 export function getAdminAuditLogs(token) {
   return request("/api/admin/audit-logs", "GET", undefined, token);
+}
+
+export function getMyNotifications(token) {
+  return request("/api/notifications/my", "GET", undefined, token);
+}
+
+export function getUnreadNotificationCount(token) {
+  return request("/api/notifications/my/unread-count", "GET", undefined, token);
+}
+
+export function markNotificationRead(notificationId, token) {
+  return request(`/api/notifications/${notificationId}/read`, "PATCH", undefined, token);
 }

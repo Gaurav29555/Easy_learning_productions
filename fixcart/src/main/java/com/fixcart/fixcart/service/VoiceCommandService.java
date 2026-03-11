@@ -3,6 +3,7 @@ package com.fixcart.fixcart.service;
 import com.fixcart.fixcart.dto.CreateBookingRequest;
 import com.fixcart.fixcart.dto.VoiceCommandRequest;
 import com.fixcart.fixcart.dto.VoiceCommandResponse;
+import com.fixcart.fixcart.entity.Booking;
 import com.fixcart.fixcart.entity.enums.WorkerType;
 import com.fixcart.fixcart.exception.BadRequestException;
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ public class VoiceCommandService {
 
     private final BookingService bookingService;
     private final WorkerService workerService;
+    private final com.fixcart.fixcart.repository.BookingRepository bookingRepository;
 
     public VoiceCommandResponse handleCustomerCommand(Long customerId, VoiceCommandRequest request) {
         String normalized = request.transcript().trim().toLowerCase(Locale.ROOT);
@@ -26,8 +28,19 @@ public class VoiceCommandService {
         suggestions.add("Say: hello fixcart book plumber for me");
         suggestions.add("Say: find nearest electrician near me");
         suggestions.add("Say: book AC repair at my current location");
+        suggestions.add("Say: fixcart mera booking status batao");
 
-        if (normalized.contains("nearest") || normalized.contains("nearby") || normalized.contains("find")) {
+        if (normalized.contains("status") || normalized.contains("booking status") || normalized.contains("batao") || normalized.contains("mera booking")) {
+            Booking latestBooking = bookingRepository.findTop1ByCustomerIdOrderByCreatedAtDesc(customerId);
+            if (latestBooking == null) {
+                throw new BadRequestException("No fixcart booking exists yet for this account.");
+            }
+            var response = bookingService.toResponse(latestBooking);
+            String spoken = "Your latest fixcart booking status is " + latestBooking.getStatus().name().toLowerCase(Locale.ROOT).replace('_', ' ') + ".";
+            return new VoiceCommandResponse("BOOKING_STATUS", spoken, response, List.of(), suggestions);
+        }
+
+        if (normalized.contains("nearest") || normalized.contains("nearby") || normalized.contains("find") || normalized.contains("paas") || normalized.contains("near me")) {
             if (detectedType == null) {
                 throw new BadRequestException("Voice command should mention a service like plumber, carpenter or electrician.");
             }
@@ -40,7 +53,12 @@ public class VoiceCommandService {
             return new VoiceCommandResponse("FIND_NEARBY", spoken, null, workers, suggestions);
         }
 
-        if (normalized.contains("book") || normalized.contains("assign") || normalized.contains("worker for me")) {
+        if (normalized.contains("book")
+                || normalized.contains("assign")
+                || normalized.contains("worker for me")
+                || normalized.contains("chahiye")
+                || normalized.contains("book karo")
+                || normalized.contains("bhejo")) {
             if (detectedType == null) {
                 throw new BadRequestException("Voice booking command should mention the worker type you need.");
             }
@@ -68,12 +86,12 @@ public class VoiceCommandService {
 
     private WorkerType detectWorkerType(String normalized) {
         if (normalized.contains("plumber") || normalized.contains("pipe") || normalized.contains("leak")) return WorkerType.PLUMBER;
-        if (normalized.contains("carpenter") || normalized.contains("wood")) return WorkerType.CARPENTER;
-        if (normalized.contains("electrician") || normalized.contains("electric")) return WorkerType.ELECTRICIAN;
-        if (normalized.contains("cleaner") || normalized.contains("cleaning")) return WorkerType.CLEANER;
+        if (normalized.contains("carpenter") || normalized.contains("wood") || normalized.contains("furniture")) return WorkerType.CARPENTER;
+        if (normalized.contains("electrician") || normalized.contains("electric") || normalized.contains("light") || normalized.contains("switch")) return WorkerType.ELECTRICIAN;
+        if (normalized.contains("cleaner") || normalized.contains("cleaning") || normalized.contains("safai")) return WorkerType.CLEANER;
         if (normalized.contains("ac") || normalized.contains("air conditioner")) return WorkerType.AC_REPAIR;
-        if (normalized.contains("appliance") || normalized.contains("fridge") || normalized.contains("washing machine")) return WorkerType.APPLIANCE_REPAIR;
-        if (normalized.contains("paint") || normalized.contains("painter")) return WorkerType.PAINTER;
+        if (normalized.contains("appliance") || normalized.contains("fridge") || normalized.contains("washing machine") || normalized.contains("machine")) return WorkerType.APPLIANCE_REPAIR;
+        if (normalized.contains("paint") || normalized.contains("painter") || normalized.contains("deewar")) return WorkerType.PAINTER;
         return null;
     }
 

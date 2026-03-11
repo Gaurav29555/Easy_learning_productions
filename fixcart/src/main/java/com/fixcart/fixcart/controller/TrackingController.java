@@ -1,5 +1,6 @@
 package com.fixcart.fixcart.controller;
 
+import com.fixcart.fixcart.dto.RouteSimulationResponse;
 import com.fixcart.fixcart.dto.TrackingEventResponse;
 import com.fixcart.fixcart.dto.TrackingUpdateRequest;
 import com.fixcart.fixcart.entity.enums.UserRole;
@@ -49,5 +50,16 @@ public class TrackingController {
         Long userId = userService.extractUserId(principal.getName());
         UserRole role = userService.extractRole(principal.getName());
         return ResponseEntity.ok(trackingService.getRecentEvents(bookingId, userId, role));
+    }
+
+    @GetMapping("/bookings/{bookingId}/route")
+    @PreAuthorize("hasAnyRole('CUSTOMER','WORKER','ADMIN')")
+    public ResponseEntity<RouteSimulationResponse> getRouteSimulation(
+            Principal principal,
+            @PathVariable Long bookingId
+    ) {
+        Long userId = userService.extractUserId(principal.getName());
+        UserRole role = userService.extractRole(principal.getName());
+        return ResponseEntity.ok(trackingService.simulateRoute(bookingId, userId, role));
     }
 }

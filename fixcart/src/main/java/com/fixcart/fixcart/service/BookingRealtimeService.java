@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 public class BookingRealtimeService {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
 
     public void publish(String eventType, String message, Booking booking) {
         BookingResponse response = new BookingResponse(
@@ -33,8 +34,10 @@ public class BookingRealtimeService {
         BookingRealtimeEvent event = new BookingRealtimeEvent(eventType, message, response);
         messagingTemplate.convertAndSend("/topic/admin/bookings", event);
         messagingTemplate.convertAndSend("/topic/customer/" + booking.getCustomer().getId() + "/bookings", event);
+        notificationService.sendToUser(booking.getCustomer().getId(), eventType, "Booking update", message);
         if (booking.getWorker() != null) {
             messagingTemplate.convertAndSend("/topic/worker/" + booking.getWorker().getUser().getId() + "/bookings", event);
+            notificationService.sendToUser(booking.getWorker().getUser().getId(), eventType, "New fixcart job update", message);
         }
     }
 }

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import logo from "../assets/fixcart-logo.svg";
+import NotificationCenter from "./NotificationCenter";
 
 export default function Navbar() {
   const { auth, logout, isAuthenticated } = useAuth();
@@ -19,6 +20,7 @@ export default function Navbar() {
       <div className="nav-actions">
         {isAuthenticated ? (
           <>
+            <NotificationCenter />
             <span className="role-pill">{auth.role}</span>
             <button className="ghost-btn" onClick={onLogout}>
               Logout

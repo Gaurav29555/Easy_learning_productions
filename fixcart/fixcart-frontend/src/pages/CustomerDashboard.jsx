@@ -6,6 +6,7 @@ import {
   createBooking,
   createPaymentOrder,
   getServiceCatalog,
+  getRouteSimulation,
   findNearbyWorkers,
   getMyBookings,
   getMyPayments,
@@ -26,6 +27,7 @@ export default function CustomerDashboard() {
   const [payments, setPayments] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [trackingEvents, setTrackingEvents] = useState([]);
+  const [routeSimulation, setRouteSimulation] = useState(null);
   const [workers, setWorkers] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [error, setError] = useState("");
@@ -196,7 +198,9 @@ export default function CustomerDashboard() {
     }
     try {
       const data = await getTrackingEvents(Number(trackingBookingId), auth.token);
+      const route = await getRouteSimulation(Number(trackingBookingId), auth.token);
       setTrackingEvents(data);
+      setRouteSimulation(route);
       setSelectedBookingIdForMap(trackingBookingId);
     } catch (err) {
       setError(err.message);
@@ -447,14 +451,20 @@ export default function CustomerDashboard() {
           <LiveTrackingMap
             bookingId={selectedBookingIdForMap}
             initialEvents={trackingEvents}
+            routePoints={routeSimulation?.routePoints ?? []}
             onLiveEvent={(event) => setTrackingEvents((prev) => [event, ...prev].slice(0, 200))}
           />
+        )}
+        {routeSimulation && (
+          <p className="muted">
+            Simulated route distance: {routeSimulation.totalDistanceKm.toFixed(2)} km | ETA {routeSimulation.etaMinutes} min
+          </p>
         )}
         <div className="list">
           {trackingEvents.map((event, idx) => (
             <article key={`${event.createdAt}-${idx}`} className="list-item">
               <p>
-                Worker #{event.workerId} - {event.latitude}, {event.longitude} - {event.speedKmh} km/h
+                Worker #{event.workerId} - {event.latitude}, {event.longitude} - {event.speedKmh} km/h - {event.distanceToDestinationKm.toFixed(2)} km away - ETA {event.etaMinutes} min
               </p>
             </article>
           ))}
