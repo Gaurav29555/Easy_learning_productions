@@ -23,6 +23,7 @@ public class WorkerService {
 
     private final WorkerRepository workerRepository;
     private final BookingRepository bookingRepository;
+    private final WorkerRealtimeService workerRealtimeService;
 
     public List<WorkerResponse> findNearbyWorkers(double latitude, double longitude, WorkerType workerType, double radiusKm) {
         return workerRepository.findByAvailableTrueAndWorkerTypeAndApprovalStatus(workerType, WorkerApprovalStatus.APPROVED).stream()
@@ -54,7 +55,9 @@ public class WorkerService {
 
         worker.setLatitude(request.latitude());
         worker.setLongitude(request.longitude());
-        return workerRepository.save(worker);
+        Worker saved = workerRepository.save(worker);
+        workerRealtimeService.publishLocationUpdate(saved);
+        return saved;
     }
 
     public WorkerResponse mapWorkerWithDistance(Worker worker, double latitude, double longitude) {

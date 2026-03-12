@@ -61,6 +61,10 @@ export default function CustomerDashboard() {
     () => catalog.map((item) => item.workerType),
     [catalog]
   );
+  const liveWorkerTopic = useMemo(
+    () => `/topic/workers/${nearbyForm.workerType}`,
+    [nearbyForm.workerType]
+  );
 
   const loadBookings = async () => {
     setLoadingBookings(true);
@@ -105,6 +109,50 @@ export default function CustomerDashboard() {
     client.activate();
     return () => client.deactivate();
   }, [auth.userId]);
+
+  useEffect(() => {
+    if (!nearbyForm.latitude || !nearbyForm.longitude) return undefined;
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS(`${FIXCART_API_BASE_URL}/ws-fixcart`),
+      reconnectDelay: 3000
+    });
+
+    client.onConnect = () => {
+      client.subscribe(liveWorkerTopic, (message) => {
+        const payload = JSON.parse(message.body);
+        const worker = payload.worker;
+        const toRadians = (value) => (value * Math.PI) / 180;
+        const earthRadiusKm = 6371;
+        const dLat = toRadians(worker.latitude - Number(nearbyForm.latitude));
+        const dLon = toRadians(worker.longitude - Number(nearbyForm.longitude));
+        const lat1 = toRadians(Number(nearbyForm.latitude));
+        const lat2 = toRadians(worker.latitude);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        const distanceKm = earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        if (distanceKm > Number(nearbyForm.radiusKm || 20)) {
+          setWorkers((prev) => prev.filter((item) => item.workerId !== worker.workerId));
+          return;
+        }
+
+        const enrichedWorker = { ...worker, distanceKm };
+        setWorkers((prev) => {
+          const existingIndex = prev.findIndex((item) => item.workerId === enrichedWorker.workerId);
+          const next = existingIndex === -1
+            ? [enrichedWorker, ...prev]
+            : prev.map((item) => (item.workerId === enrichedWorker.workerId ? enrichedWorker : item));
+          return next.sort((left, right) => left.distanceKm - right.distanceKm);
+        });
+        setInfo(`Live worker update: ${worker.fullName} moved near your selected area.`);
+      });
+    };
+
+    client.activate();
+    return () => client.deactivate();
+  }, [liveWorkerTopic, nearbyForm.latitude, nearbyForm.longitude, nearbyForm.radiusKm]);
 
   const onCreateBooking = async (event) => {
     event.preventDefault();
