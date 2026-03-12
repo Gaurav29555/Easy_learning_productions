@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
@@ -32,6 +33,7 @@ public class DemoDataBootstrapConfig {
     private String demoPassword;
 
     @Bean
+    @Order(1)
     public CommandLineRunner fixcartDemoWorkerBootstrapRunner() {
         return args -> {
             if (!demoBootstrapEnabled) {
