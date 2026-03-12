@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
-  const [otpForm, setOtpForm] = useState({ phone: "", otpCode: "" });
+  const [otpForm, setOtpForm] = useState({ email: "", otpCode: "" });
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -33,9 +33,15 @@ export default function LoginPage() {
   const onSendLoginOtp = async () => {
     setError("");
     setInfo("");
+    const normalizedEmail = otpForm.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError("Enter a valid email first.");
+      return;
+    }
     try {
-      const data = await sendOtp({ phone: otpForm.phone, purpose: "LOGIN" });
-      setInfo(`Login OTP sent. ${data.debugOtp ? `Dev OTP: ${data.debugOtp}` : ""}`);
+      const data = await sendOtp({ email: normalizedEmail, purpose: "LOGIN" });
+      setOtpForm((current) => ({ ...current, email: normalizedEmail }));
+      setInfo(`Login OTP sent to email. ${data.debugOtp ? `Dev OTP: ${data.debugOtp}` : "Check your inbox."}`);
     } catch (err) {
       setError(err.message);
     }
@@ -88,10 +94,10 @@ export default function LoginPage() {
         <div className="divider">OR</div>
         <form onSubmit={onOtpLogin} className="form-grid">
           <input
-            type="text"
-            placeholder="Phone"
-            value={otpForm.phone}
-            onChange={(e) => setOtpForm({ ...otpForm, phone: e.target.value })}
+            type="email"
+            placeholder="Email"
+            value={otpForm.email}
+            onChange={(e) => setOtpForm({ ...otpForm, email: e.target.value })}
             required
           />
           <div className="action-row">

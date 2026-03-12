@@ -6,7 +6,7 @@ import com.fixcart.fixcart.entity.enums.AuditActionType;
 import com.fixcart.fixcart.entity.enums.OtpPurpose;
 import com.fixcart.fixcart.exception.BadRequestException;
 import com.fixcart.fixcart.repository.OtpVerificationRepository;
-import com.fixcart.fixcart.service.sms.SmsDispatchService;
+import com.fixcart.fixcart.service.email.EmailDispatchService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Random;
@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OtpService {
 
     private final OtpVerificationRepository otpVerificationRepository;
-    private final SmsDispatchService smsDispatchService;
+    private final EmailDispatchService emailDispatchService;
     private final RequestRateLimitService requestRateLimitService;
     private final AuditLogService auditLogService;
     private final Random random = new Random();
@@ -37,11 +37,12 @@ public class OtpService {
     private boolean exposeOtpInResponse;
 
     @Transactional
-    public OtpStatusResponse sendOtp(String phone, OtpPurpose purpose) {
-        requestRateLimitService.assertAllowed("otp:send:" + phone, 5, Duration.ofMinutes(15));
+    public OtpStatusResponse sendOtp(String email, OtpPurpose purpose) {
+        String normalizedEmail = email.toLowerCase().trim();
+        requestRateLimitService.assertAllowed("otp:send:" + normalizedEmail, 5, Duration.ofMinutes(15));
         String otpCode = String.format("%06d", random.nextInt(1_000_000));
         OtpVerification otp = new OtpVerification();
-        otp.setPhone(phone);
+        otp.setEmail(normalizedEmail);
         otp.setOtpCode(otpCode);
         otp.setPurpose(purpose);
         otp.setExpiresAt(LocalDateTime.now().plusMinutes(otpExpirationMinutes));
@@ -49,21 +50,22 @@ public class OtpService {
         otp.setConsumed(false);
         otp.setAttempts(0);
         otpVerificationRepository.save(otp);
-        smsDispatchService.sendOtp(phone, "Your fixcart OTP is " + otpCode + ". It expires in " + otpExpirationMinutes + " minutes.");
-        auditLogService.record(AuditActionType.OTP_SENT, "SYSTEM", null, "OTP", otp.getId(), "OTP sent for phone " + phone + " purpose " + purpose);
+        emailDispatchService.sendOtp(normalizedEmail, otpCode, otpExpirationMinutes);
+        auditLogService.record(AuditActionType.OTP_SENT, "SYSTEM", null, "OTP", otp.getId(), "OTP sent for email " + normalizedEmail + " purpose " + purpose);
 
-        log.info("fixcart OTP generated phone={} purpose={} otp={}", phone, purpose, otpCode);
+        log.info("fixcart OTP generated email={} purpose={} otp={}", normalizedEmail, purpose, otpCode);
         return new OtpStatusResponse(
                 true,
-                "OTP generated successfully",
+                "OTP sent successfully to email",
                 exposeOtpInResponse ? otpCode : null
         );
     }
 
     @Transactional
-    public OtpStatusResponse verifyOtp(String phone, OtpPurpose purpose, String otpCode) {
-        requestRateLimitService.assertAllowed("otp:verify:" + phone, 10, Duration.ofMinutes(15));
-        OtpVerification otp = otpVerificationRepository.findFirstByPhoneAndPurposeOrderByCreatedAtDesc(phone, purpose)
+    public OtpStatusResponse verifyOtp(String email, OtpPurpose purpose, String otpCode) {
+        String normalizedEmail = email.toLowerCase().trim();
+        requestRateLimitService.assertAllowed("otp:verify:" + normalizedEmail, 10, Duration.ofMinutes(15));
+        OtpVerification otp = otpVerificationRepository.findFirstByEmailAndPurposeOrderByCreatedAtDesc(normalizedEmail, purpose)
                 .orElseThrow(() -> new BadRequestException("No OTP found. Please request a new OTP."));
 
         if (otp.isConsumed()) {
@@ -86,24 +88,24 @@ public class OtpService {
 
         otp.setVerified(true);
         otpVerificationRepository.save(otp);
-        auditLogService.record(AuditActionType.OTP_VERIFIED, "SYSTEM", null, "OTP", otp.getId(), "OTP verified for phone " + phone + " purpose " + purpose);
+        auditLogService.record(AuditActionType.OTP_VERIFIED, "SYSTEM", null, "OTP", otp.getId(), "OTP verified for email " + normalizedEmail + " purpose " + purpose);
         return new OtpStatusResponse(true, "OTP verified successfully", null);
     }
 
-    public void assertPhoneVerifiedForPurpose(String phone, OtpPurpose purpose) {
-        OtpVerification otp = otpVerificationRepository.findFirstByPhoneAndPurposeOrderByCreatedAtDesc(phone, purpose)
-                .orElseThrow(() -> new BadRequestException("Phone verification required"));
+    public void assertEmailVerifiedForPurpose(String email, OtpPurpose purpose) {
+        OtpVerification otp = otpVerificationRepository.findFirstByEmailAndPurposeOrderByCreatedAtDesc(email.toLowerCase().trim(), purpose)
+                .orElseThrow(() -> new BadRequestException("Email verification required"));
         if (!otp.isVerified() || otp.isConsumed() || LocalDateTime.now().isAfter(otp.getExpiresAt())) {
-            throw new BadRequestException("Phone verification required");
+            throw new BadRequestException("Email verification required");
         }
     }
 
     @Transactional
-    public void consumeVerifiedOtp(String phone, OtpPurpose purpose) {
-        OtpVerification otp = otpVerificationRepository.findFirstByPhoneAndPurposeOrderByCreatedAtDesc(phone, purpose)
-                .orElseThrow(() -> new BadRequestException("Phone verification record not found"));
+    public void consumeVerifiedOtp(String email, OtpPurpose purpose) {
+        OtpVerification otp = otpVerificationRepository.findFirstByEmailAndPurposeOrderByCreatedAtDesc(email.toLowerCase().trim(), purpose)
+                .orElseThrow(() -> new BadRequestException("Email verification record not found"));
         if (!otp.isVerified()) {
-            throw new BadRequestException("Phone verification required");
+            throw new BadRequestException("Email verification required");
         }
         otp.setConsumed(true);
         otpVerificationRepository.save(otp);

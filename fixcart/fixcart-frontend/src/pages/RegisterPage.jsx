@@ -66,19 +66,19 @@ export default function RegisterPage() {
   const onSendOtp = async () => {
     setError("");
     setInfo("");
-    const normalizedPhone = form.phone.replace(/\D/g, "");
-    if (!normalizedPhone) {
-      setError("Enter phone number first");
+    const normalizedEmail = form.email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError("Enter email first");
       return;
     }
-    if (!/^[0-9]{10,15}$/.test(normalizedPhone)) {
-      setError("Phone number must contain 10 to 15 digits.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError("Enter a valid email address.");
       return;
     }
     try {
-      const data = await sendOtp({ phone: normalizedPhone, purpose: "REGISTER" });
-      setForm((current) => ({ ...current, phone: normalizedPhone }));
-      setInfo(`OTP sent. ${data.debugOtp ? `Dev OTP: ${data.debugOtp}` : "Check SMS inbox."}`);
+      const data = await sendOtp({ email: normalizedEmail, purpose: "REGISTER" });
+      setForm((current) => ({ ...current, email: normalizedEmail }));
+      setInfo(`OTP sent to email. ${data.debugOtp ? `Dev OTP: ${data.debugOtp}` : "Check your inbox."}`);
     } catch (err) {
       setError(err.message);
     }
@@ -87,10 +87,10 @@ export default function RegisterPage() {
   const onVerifyOtp = async () => {
     setError("");
     setInfo("");
-    const normalizedPhone = form.phone.replace(/\D/g, "");
+    const normalizedEmail = form.email.trim().toLowerCase();
     const normalizedOtp = otpCode.replace(/\D/g, "");
-    if (!/^[0-9]{10,15}$/.test(normalizedPhone)) {
-      setError("Enter the same valid phone number used for OTP send.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError("Enter the same valid email used for OTP send.");
       return;
     }
     if (!/^[0-9]{6}$/.test(normalizedOtp)) {
@@ -98,8 +98,8 @@ export default function RegisterPage() {
       return;
     }
     try {
-      await verifyOtp({ phone: normalizedPhone, purpose: "REGISTER", otpCode: normalizedOtp });
-      setForm((current) => ({ ...current, phone: normalizedPhone }));
+      await verifyOtp({ email: normalizedEmail, purpose: "REGISTER", otpCode: normalizedOtp });
+      setForm((current) => ({ ...current, email: normalizedEmail }));
       setOtpCode(normalizedOtp);
       setOtpVerified(true);
       setInfo("OTP verified. You can now register.");
@@ -113,7 +113,7 @@ export default function RegisterPage() {
     <section className="auth-layout">
       <div className="auth-panel wide-auth-panel">
         <h1>Create fixcart account</h1>
-        <p>Register as customer or worker and start booking instantly.</p>
+        <p>Register as customer or worker and verify your email instantly.</p>
         {error && <div className="error-box">{error}</div>}
         {info && <div className="info-box">{info}</div>}
 
@@ -146,7 +146,10 @@ export default function RegisterPage() {
             type="email"
             placeholder="Email"
             value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, email: e.target.value });
+              setOtpVerified(false);
+            }}
             required
           />
           <input
@@ -162,7 +165,6 @@ export default function RegisterPage() {
             value={form.phone}
             onChange={(e) => {
               setForm({ ...form, phone: e.target.value.replace(/\D/g, "") });
-              setOtpVerified(false);
             }}
             required
           />

@@ -42,7 +42,7 @@ public class AuthService {
 
     @Transactional
     public AuthResponse registerCustomer(RegisterUserRequest request) {
-        otpService.assertPhoneVerifiedForPurpose(request.phone(), OtpPurpose.REGISTER);
+        otpService.assertEmailVerifiedForPurpose(request.email(), OtpPurpose.REGISTER);
         validateUniqueFields(request.email(), request.phone());
 
         User user = new User();
@@ -52,7 +52,7 @@ public class AuthService {
         user.setPhone(request.phone());
         user.setRole(UserRole.CUSTOMER);
         User saved = userRepository.save(user);
-        otpService.consumeVerifiedOtp(request.phone(), OtpPurpose.REGISTER);
+        otpService.consumeVerifiedOtp(request.email(), OtpPurpose.REGISTER);
         auditLogService.record(AuditActionType.USER_REGISTERED, "USER", saved.getId(), "USER", saved.getId(), "Customer registered in fixcart");
 
         String token = createToken(saved);
@@ -61,7 +61,7 @@ public class AuthService {
 
     @Transactional
     public AuthResponse registerWorker(RegisterWorkerRequest request) {
-        otpService.assertPhoneVerifiedForPurpose(request.phone(), OtpPurpose.REGISTER);
+        otpService.assertEmailVerifiedForPurpose(request.email(), OtpPurpose.REGISTER);
         validateUniqueFields(request.email(), request.phone());
 
         User user = new User();
@@ -82,7 +82,7 @@ public class AuthService {
         worker.setLongitude(request.longitude());
         worker.setAvailable(false);
         Worker savedWorker = workerRepository.save(worker);
-        otpService.consumeVerifiedOtp(request.phone(), OtpPurpose.REGISTER);
+        otpService.consumeVerifiedOtp(request.email(), OtpPurpose.REGISTER);
         auditLogService.record(
                 AuditActionType.WORKER_REGISTERED,
                 "USER",
@@ -111,10 +111,10 @@ public class AuthService {
 
     @Transactional
     public AuthResponse loginWithOtp(OtpLoginRequest request) {
-        otpService.verifyOtp(request.phone(), OtpPurpose.LOGIN, request.otpCode());
-        User user = userRepository.findByPhone(request.phone())
-                .orElseThrow(() -> new BadRequestException("User not found with phone"));
-        otpService.consumeVerifiedOtp(request.phone(), OtpPurpose.LOGIN);
+        otpService.verifyOtp(request.email(), OtpPurpose.LOGIN, request.otpCode());
+        User user = userRepository.findByEmail(request.email().toLowerCase())
+                .orElseThrow(() -> new BadRequestException("User not found with email"));
+        otpService.consumeVerifiedOtp(request.email(), OtpPurpose.LOGIN);
         auditLogService.record(AuditActionType.OTP_VERIFIED, "USER", user.getId(), "USER", user.getId(), "OTP login completed in fixcart");
         String token = createToken(user);
         return new AuthResponse(token, user.getId(), user.getEmail(), user.getRole().name());

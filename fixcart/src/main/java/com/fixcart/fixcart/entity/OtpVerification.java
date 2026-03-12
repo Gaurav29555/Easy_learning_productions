@@ -25,7 +25,7 @@ public class OtpVerification {
     private Long id;
 
     @Column(nullable = false)
-    private String phone;
+    private String email;
 
     @Column(nullable = false)
     private String otpCode;

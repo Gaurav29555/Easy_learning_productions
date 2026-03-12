@@ -29,12 +29,12 @@ public class AuthController {
 
     @PostMapping("/otp/send")
     public ResponseEntity<OtpStatusResponse> sendOtp(@Valid @RequestBody SendOtpRequest request) {
-        return ResponseEntity.ok(otpService.sendOtp(request.phone(), request.purpose()));
+        return ResponseEntity.ok(otpService.sendOtp(request.email(), request.purpose()));
     }
 
     @PostMapping("/otp/verify")
     public ResponseEntity<OtpStatusResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-        return ResponseEntity.ok(otpService.verifyOtp(request.phone(), request.purpose(), request.otpCode()));
+        return ResponseEntity.ok(otpService.verifyOtp(request.email(), request.purpose(), request.otpCode()));
     }
 
     @PostMapping("/register/user")
