@@ -61,7 +61,8 @@ public class BookingService {
         WorkerService.WorkerDistance nearest = findBestWorkerWithRadiusExpansion(
                 request.customerLatitude(),
                 request.customerLongitude(),
-                request.serviceType()
+                request.serviceType(),
+                null
         );
 
         if (nearest != null && request.scheduledAt() == null) {

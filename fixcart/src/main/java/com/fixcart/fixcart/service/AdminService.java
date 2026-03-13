@@ -38,6 +38,7 @@ public class AdminService {
     private final WorkerService workerService;
     private final BookingService bookingService;
     private final AuditLogService auditLogService;
+    private final DispatchConfigurationService dispatchConfigurationService;
 
     public AdminMetricsResponse getMetrics() {
         long totalCustomers = userRepository.countByRole(UserRole.CUSTOMER);
@@ -79,6 +80,7 @@ public class AdminService {
                 cancellationRate,
                 workerUtilizationRate,
                 assignmentRate,
+                dispatchConfigurationService.getConfig(),
                 serviceDemand
         );
     }
@@ -126,5 +128,13 @@ public class AdminService {
 
     public List<AuditLogResponse> getAuditLogs() {
         return auditLogService.recentLogs();
+    }
+
+    public com.fixcart.fixcart.dto.DispatchConfigurationResponse getDispatchConfiguration() {
+        return dispatchConfigurationService.getConfig();
+    }
+
+    public com.fixcart.fixcart.dto.DispatchConfigurationResponse updateDispatchConfiguration(com.fixcart.fixcart.dto.UpdateDispatchConfigurationRequest request) {
+        return dispatchConfigurationService.update(request);
     }
 }

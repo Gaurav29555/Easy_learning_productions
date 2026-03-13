@@ -31,14 +31,7 @@ public class TrackingService {
     private final RoutePlanningService routePlanningService;
     private final EtaSubscriptionService etaSubscriptionService;
 
-    @org.springframework.beans.factory.annotation.Value("${fixcart.dispatch.stalled-minutes:8}")
-    private long stalledMinutesThreshold;
-
-    @org.springframework.beans.factory.annotation.Value("${fixcart.dispatch.regression-km:0.75}")
-    private double regressionDistanceKm;
-
-    @org.springframework.beans.factory.annotation.Value("${fixcart.dispatch.eta-regression-minutes:8}")
-    private long etaRegressionMinutes;
+    private final DispatchConfigurationService dispatchConfigurationService;
 
     @Transactional
     public TrackingEventResponse publishLocation(Long bookingId, Long userId, UserRole role, TrackingUpdateRequest request) {
@@ -119,6 +112,7 @@ public class TrackingService {
     }
 
     private TrackingEventResponse toResponse(TrackingEvent event) {
+        var dispatchConfig = dispatchConfigurationService.getCurrentConfig();
         double distanceToDestinationKm = workerService.haversineKm(
                 event.getLatitude(),
                 event.getLongitude(),
@@ -126,6 +120,10 @@ public class TrackingService {
                 event.getBooking().getCustomerLongitude()
         );
         long etaMinutes = routePlanningService.estimateEtaMinutes(distanceToDestinationKm, event.getSpeedKmh());
+        double routeConfidenceScore = computeRouteConfidence(event, distanceToDestinationKm, etaMinutes, dispatchConfig.getInactiveSpeedThresholdKmh());
+        String inactivityWarning = event.getSpeedKmh() < dispatchConfig.getInactiveSpeedThresholdKmh()
+                ? "Worker movement is slow. Keep tracking active."
+                : "";
         return new TrackingEventResponse(
                 event.getBooking().getId(),
                 event.getWorker().getId(),
@@ -134,6 +132,8 @@ public class TrackingService {
                 event.getSpeedKmh(),
                 distanceToDestinationKm,
                 etaMinutes,
+                routeConfidenceScore,
+                inactivityWarning,
                 event.getCreatedAt()
         );
     }
@@ -156,11 +156,13 @@ public class TrackingService {
         long previousEtaMinutes = routePlanningService.estimateEtaMinutes(previousDistanceKm, previousEvent.getSpeedKmh());
         long gapMinutes = Math.max(1L, Duration.between(previousEvent.getCreatedAt(), currentEvent.getCreatedAt()).toMinutes());
 
-        boolean stalled = currentEvent.getSpeedKmh() < 3.0d
-                && gapMinutes >= stalledMinutesThreshold
+        var dispatchConfig = dispatchConfigurationService.getCurrentConfig();
+
+        boolean stalled = currentEvent.getSpeedKmh() < dispatchConfig.getInactiveSpeedThresholdKmh()
+                && gapMinutes >= dispatchConfig.getStalledMinutesThreshold()
                 && currentResponse.distanceToDestinationKm() >= previousDistanceKm - 0.2d;
-        boolean etaWorsened = currentResponse.distanceToDestinationKm() > previousDistanceKm + regressionDistanceKm
-                || currentResponse.etaMinutes() > previousEtaMinutes + etaRegressionMinutes;
+        boolean etaWorsened = currentResponse.distanceToDestinationKm() > previousDistanceKm + dispatchConfig.getRegressionDistanceKm()
+                || currentResponse.etaMinutes() > previousEtaMinutes + dispatchConfig.getEtaRegressionMinutes();
 
         if (!stalled && !etaWorsened) {
             return;
@@ -176,5 +178,19 @@ public class TrackingService {
                     "fixcart reassigned your booking because the route ETA worsened or movement stalled."
             );
         }
+    }
+
+    private double computeRouteConfidence(TrackingEvent event, double distanceToDestinationKm, long etaMinutes, double inactiveSpeedThresholdKmh) {
+        double score = 100.0;
+        if (event.getSpeedKmh() < inactiveSpeedThresholdKmh) {
+            score -= 30.0;
+        }
+        if (distanceToDestinationKm > 10) {
+            score -= 15.0;
+        }
+        if (etaMinutes > 30) {
+            score -= 15.0;
+        }
+        return Math.max(5.0, score);
     }
 }

@@ -19,6 +19,7 @@ public record AdminMetricsResponse(
         double cancellationRate,
         double workerUtilizationRate,
         double assignmentRate,
+        DispatchConfigurationResponse dispatchConfiguration,
         List<ServiceDemandMetric> topServiceDemand
 ) {
 }

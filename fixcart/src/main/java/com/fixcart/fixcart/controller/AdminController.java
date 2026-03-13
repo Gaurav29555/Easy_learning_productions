@@ -3,7 +3,9 @@ package com.fixcart.fixcart.controller;
 import com.fixcart.fixcart.dto.AdminMetricsResponse;
 import com.fixcart.fixcart.dto.AuditLogResponse;
 import com.fixcart.fixcart.dto.BookingResponse;
+import com.fixcart.fixcart.dto.DispatchConfigurationResponse;
 import com.fixcart.fixcart.dto.PaymentResponse;
+import com.fixcart.fixcart.dto.UpdateDispatchConfigurationRequest;
 import com.fixcart.fixcart.dto.UpdateWorkerApprovalStatusRequest;
 import com.fixcart.fixcart.dto.UpdateWorkerAvailabilityRequest;
 import com.fixcart.fixcart.dto.WorkerResponse;
@@ -77,5 +79,17 @@ public class AdminController {
     @GetMapping("/audit-logs")
     public ResponseEntity<List<AuditLogResponse>> auditLogs() {
         return ResponseEntity.ok(adminService.getAuditLogs());
+    }
+
+    @GetMapping("/dispatch-config")
+    public ResponseEntity<DispatchConfigurationResponse> dispatchConfig() {
+        return ResponseEntity.ok(adminService.getDispatchConfiguration());
+    }
+
+    @PatchMapping("/dispatch-config")
+    public ResponseEntity<DispatchConfigurationResponse> updateDispatchConfig(
+            @Valid @RequestBody UpdateDispatchConfigurationRequest request
+    ) {
+        return ResponseEntity.ok(adminService.updateDispatchConfiguration(request));
     }
 }

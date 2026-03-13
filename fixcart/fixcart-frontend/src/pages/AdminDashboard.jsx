@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import {
   getAdminAuditLogs,
   getAdminBookings,
+  getDispatchConfiguration,
   getAdminMetrics,
   getAdminWorkers,
+  updateDispatchConfiguration,
   updateAdminWorkerApproval,
   updateAdminWorkerAvailability
 } from "../api/fixcartApi";
@@ -15,21 +17,24 @@ export default function AdminDashboard() {
   const [bookings, setBookings] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [dispatchConfig, setDispatchConfig] = useState(null);
   const [error, setError] = useState("");
 
   const loadAll = async () => {
     setError("");
     try {
-      const [metricsData, workersData, bookingsData, auditLogData] = await Promise.all([
+      const [metricsData, workersData, bookingsData, auditLogData, dispatchData] = await Promise.all([
         getAdminMetrics(auth.token),
         getAdminWorkers(auth.token),
         getAdminBookings(auth.token),
-        getAdminAuditLogs(auth.token)
+        getAdminAuditLogs(auth.token),
+        getDispatchConfiguration(auth.token)
       ]);
       setMetrics(metricsData);
       setWorkers(workersData);
       setBookings(bookingsData);
       setAuditLogs(auditLogData);
+      setDispatchConfig(dispatchData);
     } catch (err) {
       setError(err.message);
     }
@@ -51,6 +56,24 @@ export default function AdminDashboard() {
   const onApprovalChange = async (workerId, approvalStatus) => {
     try {
       await updateAdminWorkerApproval(workerId, { approvalStatus }, auth.token);
+      await loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const onDispatchConfigChange = async (event) => {
+    event.preventDefault();
+    try {
+      await updateDispatchConfiguration(
+        {
+          stalledMinutesThreshold: Number(dispatchConfig.stalledMinutesThreshold),
+          regressionDistanceKm: Number(dispatchConfig.regressionDistanceKm),
+          etaRegressionMinutes: Number(dispatchConfig.etaRegressionMinutes),
+          inactiveSpeedThresholdKmh: Number(dispatchConfig.inactiveSpeedThresholdKmh)
+        },
+        auth.token
+      );
       await loadAll();
     } catch (err) {
       setError(err.message);
@@ -81,6 +104,43 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <p>Loading metrics...</p>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Live Dispatch Controls</h2>
+        {dispatchConfig ? (
+          <form onSubmit={onDispatchConfigChange} className="form-grid">
+            <input
+              type="number"
+              value={dispatchConfig.stalledMinutesThreshold}
+              onChange={(e) => setDispatchConfig({ ...dispatchConfig, stalledMinutesThreshold: e.target.value })}
+              placeholder="Stalled minutes threshold"
+            />
+            <input
+              type="number"
+              step="0.1"
+              value={dispatchConfig.regressionDistanceKm}
+              onChange={(e) => setDispatchConfig({ ...dispatchConfig, regressionDistanceKm: e.target.value })}
+              placeholder="Regression distance km"
+            />
+            <input
+              type="number"
+              value={dispatchConfig.etaRegressionMinutes}
+              onChange={(e) => setDispatchConfig({ ...dispatchConfig, etaRegressionMinutes: e.target.value })}
+              placeholder="ETA regression minutes"
+            />
+            <input
+              type="number"
+              step="0.1"
+              value={dispatchConfig.inactiveSpeedThresholdKmh}
+              onChange={(e) => setDispatchConfig({ ...dispatchConfig, inactiveSpeedThresholdKmh: e.target.value })}
+              placeholder="Inactive speed threshold"
+            />
+            <button type="submit">Save Dispatch Rules</button>
+          </form>
+        ) : (
+          <p className="muted">Loading dispatch controls...</p>
         )}
       </section>
 

@@ -143,6 +143,14 @@ export function getAdminAuditLogs(token) {
   return request("/api/admin/audit-logs", "GET", undefined, token);
 }
 
+export function getDispatchConfiguration(token) {
+  return request("/api/admin/dispatch-config", "GET", undefined, token);
+}
+
+export function updateDispatchConfiguration(payload, token) {
+  return request("/api/admin/dispatch-config", "PATCH", payload, token);
+}
+
 export function getMyNotifications(token) {
   return request("/api/notifications/my", "GET", undefined, token);
 }

@@ -24,6 +24,7 @@ export default function WorkerDashboard() {
   const [trackingEvents, setTrackingEvents] = useState([]);
   const [routeSimulation, setRouteSimulation] = useState(null);
   const [selectedBookingIdForMap, setSelectedBookingIdForMap] = useState("");
+  const [latestRouteHealth, setLatestRouteHealth] = useState(null);
   const [locationForm, setLocationForm] = useState({ latitude: null, longitude: null });
   const [trackingForm, setTrackingForm] = useState({
     bookingId: "",
@@ -120,6 +121,7 @@ export default function WorkerDashboard() {
       );
       setSelectedBookingIdForMap(String(trackingForm.bookingId));
       setTrackingEvents((prev) => [eventData, ...prev].slice(0, 200));
+      setLatestRouteHealth(eventData);
       setInfo("Tracking event published");
     } catch (err) {
       setError(err.message);
@@ -136,6 +138,7 @@ export default function WorkerDashboard() {
       const data = await getTrackingEvents(Number(trackingForm.bookingId), auth.token);
       const route = await getRouteSimulation(Number(trackingForm.bookingId), auth.token);
       setTrackingEvents(data);
+      setLatestRouteHealth(data[0] ?? null);
       setRouteSimulation(route);
       setSelectedBookingIdForMap(String(trackingForm.bookingId));
     } catch (err) {
@@ -205,6 +208,16 @@ export default function WorkerDashboard() {
           <p className="muted">
             Remaining route: {routeSimulation.totalDistanceKm.toFixed(2)} km | ETA {routeSimulation.etaMinutes} min
           </p>
+        )}
+        {latestRouteHealth && (
+          <div className="stats-grid">
+            <div className="stat-box">Route confidence: {latestRouteHealth.routeConfidenceScore?.toFixed?.(0) ?? "-"}%</div>
+            <div className="stat-box">ETA: {latestRouteHealth.etaMinutes} min</div>
+            <div className="stat-box">Speed: {latestRouteHealth.speedKmh} km/h</div>
+          </div>
+        )}
+        {latestRouteHealth?.inactivityWarning && (
+          <div className="info-box">{latestRouteHealth.inactivityWarning}</div>
         )}
       </section>
 

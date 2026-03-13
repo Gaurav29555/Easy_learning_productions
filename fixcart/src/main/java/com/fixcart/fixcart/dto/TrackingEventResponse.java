@@ -10,6 +10,8 @@ public record TrackingEventResponse(
         double speedKmh,
         double distanceToDestinationKm,
         long etaMinutes,
+        double routeConfidenceScore,
+        String inactivityWarning,
         LocalDateTime createdAt
 ) {
 }
