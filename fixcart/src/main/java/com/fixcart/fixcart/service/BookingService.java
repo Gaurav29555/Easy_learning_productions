@@ -109,6 +109,13 @@ public class BookingService {
                 .toList();
     }
 
+    public Booking findLatestActionableBooking(Long customerId) {
+        return bookingRepository.findTop1ByCustomerIdAndStatusInOrderByCreatedAtDesc(
+                customerId,
+                List.of(BookingStatus.PENDING, BookingStatus.ASSIGNED, BookingStatus.IN_PROGRESS)
+        );
+    }
+
     @Transactional
     public BookingResponse assignNearestWorker(Long bookingId) {
         Booking booking = findBookingOrThrow(bookingId);
@@ -173,6 +180,33 @@ public class BookingService {
 
         auditLogService.record(AuditActionType.BOOKING_STATUS_UPDATED, role.name(), userId, "BOOKING", saved.getId(), "Booking status changed to " + status);
         bookingRealtimeService.publish("BOOKING_STATUS_UPDATED", "Booking status changed to " + status + " in fixcart.", saved);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public BookingResponse rescheduleBooking(Long bookingId, LocalDateTime scheduledAt, Long userId, UserRole role) {
+        Booking booking = findBookingOrThrow(bookingId);
+        validateBookingAccess(booking, userId, role);
+
+        if (scheduledAt == null) {
+            throw new BadRequestException("New schedule time is required");
+        }
+        if (booking.getStatus() == BookingStatus.COMPLETED || booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new BadRequestException("Completed or cancelled bookings cannot be rescheduled");
+        }
+
+        booking.setScheduledAt(scheduledAt);
+        if (booking.getWorker() != null) {
+            Worker worker = booking.getWorker();
+            worker.setAvailable(true);
+            workerRepository.save(worker);
+            booking.setWorker(null);
+        }
+        booking.setStatus(BookingStatus.PENDING);
+
+        Booking saved = bookingRepository.save(booking);
+        auditLogService.record(AuditActionType.BOOKING_STATUS_UPDATED, role.name(), userId, "BOOKING", saved.getId(), "Booking rescheduled in fixcart");
+        bookingRealtimeService.publish("BOOKING_RESCHEDULED", "Booking rescheduled in fixcart and returned to dispatch queue.", saved);
         return toResponse(saved);
     }
 

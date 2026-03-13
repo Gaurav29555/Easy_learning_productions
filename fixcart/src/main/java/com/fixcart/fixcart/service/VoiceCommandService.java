@@ -1,12 +1,14 @@
 package com.fixcart.fixcart.service;
 
+import com.fixcart.fixcart.dto.AddressSuggestionResponse;
 import com.fixcart.fixcart.dto.CreateBookingRequest;
 import com.fixcart.fixcart.dto.VoiceCommandRequest;
 import com.fixcart.fixcart.dto.VoiceCommandResponse;
 import com.fixcart.fixcart.entity.Booking;
+import com.fixcart.fixcart.entity.enums.BookingStatus;
+import com.fixcart.fixcart.entity.enums.UserRole;
 import com.fixcart.fixcart.entity.enums.WorkerType;
 import com.fixcart.fixcart.exception.BadRequestException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -19,80 +21,150 @@ public class VoiceCommandService {
 
     private final BookingService bookingService;
     private final WorkerService workerService;
+    private final TrackingService trackingService;
+    private final AddressSearchService addressSearchService;
+    private final VoiceIntentParserService voiceIntentParserService;
     private final com.fixcart.fixcart.repository.BookingRepository bookingRepository;
 
     public VoiceCommandResponse handleCustomerCommand(Long customerId, VoiceCommandRequest request) {
-        String normalized = request.transcript().trim().toLowerCase(Locale.ROOT);
-        WorkerType detectedType = detectWorkerType(normalized);
+        var intent = voiceIntentParserService.parse(request.transcript(), request.languageCode(), request.serviceAddress());
+        WorkerType detectedType = intent.workerType();
         List<String> suggestions = new ArrayList<>();
         suggestions.add("Say: hello fixcart book plumber for me");
         suggestions.add("Say: find nearest electrician near me");
-        suggestions.add("Say: book AC repair at my current location");
+        suggestions.add("Say: book AC repair at Baner Pune tomorrow evening");
         suggestions.add("Say: fixcart mera booking status batao");
+        suggestions.add("Say: cancel my latest booking");
+        suggestions.add("Say: track my worker");
 
-        if (normalized.contains("status") || normalized.contains("booking status") || normalized.contains("batao") || normalized.contains("mera booking")) {
+        if (intent.action() == VoiceIntentParserService.VoiceAction.STATUS) {
             Booking latestBooking = bookingRepository.findTop1ByCustomerIdOrderByCreatedAtDesc(customerId);
             if (latestBooking == null) {
                 throw new BadRequestException("No fixcart booking exists yet for this account.");
             }
             var response = bookingService.toResponse(latestBooking);
             String spoken = "Your latest fixcart booking status is " + latestBooking.getStatus().name().toLowerCase(Locale.ROOT).replace('_', ' ') + ".";
-            return new VoiceCommandResponse("BOOKING_STATUS", spoken, response, List.of(), suggestions);
+            return new VoiceCommandResponse("BOOKING_STATUS", spoken, response, null, List.of(), List.of(), suggestions);
         }
 
-        if (normalized.contains("nearest") || normalized.contains("nearby") || normalized.contains("find") || normalized.contains("paas") || normalized.contains("near me")) {
+        if (intent.action() == VoiceIntentParserService.VoiceAction.CANCEL) {
+            Booking latestBooking = requireActionableBooking(customerId);
+            var response = bookingService.updateStatus(latestBooking.getId(), BookingStatus.CANCELLED, "Cancelled by fixcart voice assistant", customerId, UserRole.CUSTOMER);
+            return new VoiceCommandResponse("BOOKING_CANCELLED", "Your latest active fixcart booking has been cancelled.", response, null, List.of(), List.of(), suggestions);
+        }
+
+        if (intent.action() == VoiceIntentParserService.VoiceAction.RESCHEDULE) {
+            Booking latestBooking = requireActionableBooking(customerId);
+            if (intent.requestedSchedule() == null) {
+                throw new BadRequestException("Say when you want to reschedule, for example tomorrow morning.");
+            }
+            var response = bookingService.rescheduleBooking(latestBooking.getId(), intent.requestedSchedule(), customerId, UserRole.CUSTOMER);
+            String spoken = "Your latest fixcart booking was rescheduled for " + intent.requestedSchedule().toLocalDate() + " at " + intent.requestedSchedule().toLocalTime() + ".";
+            return new VoiceCommandResponse("BOOKING_RESCHEDULED", spoken, response, null, List.of(), List.of(), suggestions);
+        }
+
+        if (intent.action() == VoiceIntentParserService.VoiceAction.TRACK) {
+            Booking latestBooking = requireActionableBooking(customerId);
+            if (latestBooking.getWorker() == null) {
+                throw new BadRequestException("No worker is assigned yet, so live tracking is not available.");
+            }
+            var route = trackingService.simulateRoute(latestBooking.getId(), customerId, UserRole.CUSTOMER);
+            var response = bookingService.toResponse(latestBooking);
+            return new VoiceCommandResponse(
+                    "TRACK_WORKER",
+                    "Your worker is about " + route.etaMinutes() + " minutes away.",
+                    response,
+                    route,
+                    List.of(),
+                    List.of(),
+                    suggestions
+            );
+        }
+
+        if (intent.action() == VoiceIntentParserService.VoiceAction.FIND_NEARBY) {
             if (detectedType == null) {
                 throw new BadRequestException("Voice command should mention a service like plumber, carpenter or electrician.");
             }
-            double latitude = requireLatitude(request.latitude());
-            double longitude = requireLongitude(request.longitude());
+            AddressSuggestionResponse resolvedAddress = resolveAddress(intent.addressHint(), request.serviceAddress(), request.latitude(), request.longitude());
+            double latitude = resolvedAddress == null ? requireLatitude(request.latitude()) : resolvedAddress.latitude();
+            double longitude = resolvedAddress == null ? requireLongitude(request.longitude()) : resolvedAddress.longitude();
             var workers = workerService.findNearbyWorkers(latitude, longitude, detectedType, 20);
             String spoken = workers.isEmpty()
                     ? "No nearby " + formatType(detectedType) + " workers are currently available."
                     : "I found " + workers.size() + " nearby " + formatType(detectedType) + " workers.";
-            return new VoiceCommandResponse("FIND_NEARBY", spoken, null, workers, suggestions);
+            return new VoiceCommandResponse(
+                    "FIND_NEARBY",
+                    spoken,
+                    null,
+                    null,
+                    workers,
+                    resolvedAddress == null ? addressSuggestionList(intent.addressHint(), request.latitude(), request.longitude()) : List.of(resolvedAddress),
+                    suggestions
+            );
         }
 
-        if (normalized.contains("book")
-                || normalized.contains("assign")
-                || normalized.contains("worker for me")
-                || normalized.contains("chahiye")
-                || normalized.contains("book karo")
-                || normalized.contains("bhejo")) {
+        if (intent.action() == VoiceIntentParserService.VoiceAction.BOOK) {
             if (detectedType == null) {
                 throw new BadRequestException("Voice booking command should mention the worker type you need.");
             }
-            double latitude = requireLatitude(request.latitude());
-            double longitude = requireLongitude(request.longitude());
-            String address = request.serviceAddress() != null && !request.serviceAddress().isBlank()
-                    ? request.serviceAddress()
-                    : "Voice-requested location";
+            AddressSuggestionResponse resolvedAddress = resolveAddress(intent.addressHint(), request.serviceAddress(), request.latitude(), request.longitude());
+            double latitude = resolvedAddress == null ? requireLatitude(request.latitude()) : resolvedAddress.latitude();
+            double longitude = resolvedAddress == null ? requireLongitude(request.longitude()) : resolvedAddress.longitude();
+            String address = resolvedAddress == null
+                    ? (request.serviceAddress() != null && !request.serviceAddress().isBlank() ? request.serviceAddress() : "Voice-requested location")
+                    : resolvedAddress.label();
+
             var booking = bookingService.createBooking(customerId, new CreateBookingRequest(
                     detectedType,
                     address,
                     latitude,
                     longitude,
-                    normalized.contains("tomorrow") ? LocalDateTime.now().plusDays(1).withHour(10).withMinute(0) : null,
+                    intent.requestedSchedule(),
                     "Created by fixcart voice assistant from transcript: " + request.transcript()
             ));
             String spoken = booking.workerId() == null
                     ? "Your " + formatType(detectedType) + " booking is created. No worker is assigned yet, but fixcart is still searching."
                     : "Your " + formatType(detectedType) + " booking is created and a worker was assigned.";
-            return new VoiceCommandResponse("BOOKING_CREATED", spoken, booking, List.of(), suggestions);
+            return new VoiceCommandResponse(
+                    "BOOKING_CREATED",
+                    spoken,
+                    booking,
+                    null,
+                    List.of(),
+                    resolvedAddress == null ? addressSuggestionList(intent.addressHint(), request.latitude(), request.longitude()) : List.of(resolvedAddress),
+                    suggestions
+            );
         }
 
-        throw new BadRequestException("Voice command not understood. Try saying book plumber for me or find nearest electrician.");
+        throw new BadRequestException("Voice command not understood. Try saying book plumber for me, cancel my booking or track my worker.");
     }
 
-    private WorkerType detectWorkerType(String normalized) {
-        if (normalized.contains("plumber") || normalized.contains("pipe") || normalized.contains("leak")) return WorkerType.PLUMBER;
-        if (normalized.contains("carpenter") || normalized.contains("wood") || normalized.contains("furniture")) return WorkerType.CARPENTER;
-        if (normalized.contains("electrician") || normalized.contains("electric") || normalized.contains("light") || normalized.contains("switch")) return WorkerType.ELECTRICIAN;
-        if (normalized.contains("cleaner") || normalized.contains("cleaning") || normalized.contains("safai")) return WorkerType.CLEANER;
-        if (normalized.contains("ac") || normalized.contains("air conditioner")) return WorkerType.AC_REPAIR;
-        if (normalized.contains("appliance") || normalized.contains("fridge") || normalized.contains("washing machine") || normalized.contains("machine")) return WorkerType.APPLIANCE_REPAIR;
-        if (normalized.contains("paint") || normalized.contains("painter") || normalized.contains("deewar")) return WorkerType.PAINTER;
-        return null;
+    private Booking requireActionableBooking(Long customerId) {
+        Booking latestBooking = bookingService.findLatestActionableBooking(customerId);
+        if (latestBooking == null) {
+            throw new BadRequestException("No active fixcart booking is available for this voice action.");
+        }
+        return latestBooking;
+    }
+
+    private AddressSuggestionResponse resolveAddress(
+            String addressHint,
+            String serviceAddress,
+            Double latitude,
+            Double longitude
+    ) {
+        String candidate = addressHint != null && !addressHint.isBlank() ? addressHint : serviceAddress;
+        if (candidate == null || candidate.isBlank()) {
+            return null;
+        }
+        return addressSearchService.resolveBestMatch(candidate, latitude, longitude);
+    }
+
+    private List<AddressSuggestionResponse> addressSuggestionList(String addressHint, Double latitude, Double longitude) {
+        if (addressHint == null || addressHint.isBlank()) {
+            return List.of();
+        }
+        return addressSearchService.search(addressHint, latitude, longitude);
     }
 
     private String formatType(WorkerType workerType) {

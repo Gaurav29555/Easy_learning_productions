@@ -60,6 +60,16 @@ export function executeVoiceCommand(payload, token) {
   return request("/api/voice/commands", "POST", payload, token);
 }
 
+export function searchAddresses(params, token) {
+  const search = new URLSearchParams(params);
+  return request(`/api/locations/search?${search.toString()}`, "GET", undefined, token);
+}
+
+export function getRouteEta(params, token) {
+  const search = new URLSearchParams(params);
+  return request(`/api/locations/route-eta?${search.toString()}`, "GET", undefined, token);
+}
+
 export function findNearbyWorkers(params, token) {
   const search = new URLSearchParams(params);
   return request(`/api/workers/nearby?${search.toString()}`, "GET", undefined, token);

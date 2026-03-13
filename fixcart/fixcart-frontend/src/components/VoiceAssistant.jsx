@@ -52,6 +52,7 @@ export default function VoiceAssistant({ onCommandResult }) {
         {
           transcript: spokenText,
           serviceAddress: serviceAddress || "Current detected location",
+          languageCode: speechCode,
           latitude: location.latitude,
           longitude: location.longitude
         },

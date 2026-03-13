@@ -1,6 +1,5 @@
 package com.fixcart.fixcart.service;
 
-import com.fixcart.fixcart.dto.RoutePointResponse;
 import com.fixcart.fixcart.dto.RouteSimulationResponse;
 import com.fixcart.fixcart.dto.TrackingEventResponse;
 import com.fixcart.fixcart.dto.TrackingUpdateRequest;
@@ -12,7 +11,6 @@ import com.fixcart.fixcart.exception.BadRequestException;
 import com.fixcart.fixcart.exception.ResourceNotFoundException;
 import com.fixcart.fixcart.repository.TrackingEventRepository;
 import com.fixcart.fixcart.repository.WorkerRepository;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -29,6 +27,7 @@ public class TrackingService {
     private final SimpMessagingTemplate messagingTemplate;
     private final WorkerService workerService;
     private final NotificationService notificationService;
+    private final RoutePlanningService routePlanningService;
 
     @Transactional
     public TrackingEventResponse publishLocation(Long bookingId, Long userId, UserRole role, TrackingUpdateRequest request) {
@@ -95,21 +94,13 @@ public class TrackingService {
             throw new BadRequestException("Booking has no worker route to simulate");
         }
 
-        double destinationLatitude = booking.getCustomerLatitude();
-        double destinationLongitude = booking.getCustomerLongitude();
-        double totalDistanceKm = workerService.haversineKm(originLatitude, originLongitude, destinationLatitude, destinationLongitude);
-        long etaMinutes = estimateEtaMinutes(totalDistanceKm, events.isEmpty() ? 22 : Math.max(events.get(0).getSpeedKmh(), 12));
-        List<RoutePointResponse> points = interpolateRoute(originLatitude, originLongitude, destinationLatitude, destinationLongitude);
-
-        return new RouteSimulationResponse(
+        return routePlanningService.simulateBookingRoute(
                 bookingId,
                 originLatitude,
                 originLongitude,
-                destinationLatitude,
-                destinationLongitude,
-                totalDistanceKm,
-                etaMinutes,
-                points
+                booking.getCustomerLatitude(),
+                booking.getCustomerLongitude(),
+                events.isEmpty() ? 22 : Math.max(events.get(0).getSpeedKmh(), 12)
         );
     }
 
@@ -120,7 +111,7 @@ public class TrackingService {
                 event.getBooking().getCustomerLatitude(),
                 event.getBooking().getCustomerLongitude()
         );
-        long etaMinutes = estimateEtaMinutes(distanceToDestinationKm, event.getSpeedKmh());
+        long etaMinutes = routePlanningService.estimateEtaMinutes(distanceToDestinationKm, event.getSpeedKmh());
         return new TrackingEventResponse(
                 event.getBooking().getId(),
                 event.getWorker().getId(),
@@ -131,23 +122,5 @@ public class TrackingService {
                 etaMinutes,
                 event.getCreatedAt()
         );
-    }
-
-    private long estimateEtaMinutes(double distanceKm, double speedKmh) {
-        double effectiveSpeed = speedKmh > 5 ? speedKmh : 22;
-        return Math.max(1L, Math.round((distanceKm / effectiveSpeed) * 60));
-    }
-
-    private List<RoutePointResponse> interpolateRoute(double startLat, double startLng, double endLat, double endLng) {
-        List<RoutePointResponse> points = new ArrayList<>();
-        int segments = 12;
-        for (int i = 0; i <= segments; i++) {
-            double ratio = i / (double) segments;
-            points.add(new RoutePointResponse(
-                    startLat + ((endLat - startLat) * ratio),
-                    startLng + ((endLng - startLng) * ratio)
-            ));
-        }
-        return points;
     }
 }

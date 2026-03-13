@@ -349,6 +349,14 @@ textarea:focus {
   padding: 10px 12px;
 }
 
+.address-pick {
+  width: 100%;
+  text-align: left;
+  background: #f8fcf9;
+  color: var(--ink);
+  border-color: #dce7df;
+}
+
 .list-item p {
   margin: 6px 0;
   color: var(--muted);
