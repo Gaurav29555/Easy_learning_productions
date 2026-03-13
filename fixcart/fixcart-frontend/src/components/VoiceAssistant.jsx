@@ -1,17 +1,19 @@
 import { useMemo, useState } from "react";
 import { executeVoiceCommand } from "../api/fixcartApi";
 import { useAuth } from "../context/AuthContext";
+import { useFixcartSettings } from "../context/FixcartSettingsContext";
 
 const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
 const speechSynthesisApi = window.speechSynthesis;
 
 export default function VoiceAssistant({ onCommandResult }) {
   const { auth } = useAuth();
+  const { speechCode, copy, addressHint } = useFixcartSettings();
   const [transcript, setTranscript] = useState("");
   const [serviceAddress, setServiceAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
-  const [message, setMessage] = useState("Say: hello fixcart book plumber for me.");
+  const [message, setMessage] = useState(copy.voiceCta);
 
   const isSupported = useMemo(() => Boolean(SpeechRecognitionApi), []);
 
@@ -19,6 +21,7 @@ export default function VoiceAssistant({ onCommandResult }) {
     if (!speechSynthesisApi || !text) return;
     speechSynthesisApi.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = speechCode;
     utterance.rate = 1;
     utterance.pitch = 1;
     speechSynthesisApi.speak(utterance);
@@ -71,7 +74,7 @@ export default function VoiceAssistant({ onCommandResult }) {
       return;
     }
     const recognition = new SpeechRecognitionApi();
-    recognition.lang = "en-IN";
+    recognition.lang = speechCode;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     setListening(true);
@@ -103,10 +106,8 @@ export default function VoiceAssistant({ onCommandResult }) {
     <section className="voice-assistant card full-width">
       <div className="voice-assistant-head">
         <div>
-          <h2>Fixcart Voice Concierge</h2>
-          <p className="muted">
-            Book, search and automate service requests with voice-first commands.
-          </p>
+          <h2>{copy.voiceTitle}</h2>
+          <p className="muted">{copy.voiceSubtitle}</p>
         </div>
         <button type="button" onClick={startListening} disabled={loading || listening}>
           {listening ? "Listening..." : "Start Voice Command"}
@@ -114,13 +115,13 @@ export default function VoiceAssistant({ onCommandResult }) {
       </div>
       <form onSubmit={onManualSubmit} className="form-grid">
         <textarea
-          placeholder='Try: "Hello fixcart book electrician for me"'
+          placeholder={copy.voiceCta}
           value={transcript}
           onChange={(event) => setTranscript(event.target.value)}
           rows={3}
         />
         <input
-          placeholder="Service address hint (optional)"
+          placeholder={`Service address hint: ${addressHint}`}
           value={serviceAddress}
           onChange={(event) => setServiceAddress(event.target.value)}
         />

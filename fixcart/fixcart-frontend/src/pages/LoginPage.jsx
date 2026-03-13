@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login, loginWithOtp, sendOtp } from "../api/fixcartApi";
 import { useAuth } from "../context/AuthContext";
+import { useFixcartSettings } from "../context/FixcartSettingsContext";
 
 export default function LoginPage() {
   const { login: saveAuth } = useAuth();
+  const { copy } = useFixcartSettings();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -68,8 +70,8 @@ export default function LoginPage() {
   return (
     <section className="auth-layout">
       <div className="auth-panel">
-        <h1>Welcome back to fixcart</h1>
-        <p>Login and continue managing bookings in real time.</p>
+        <h1>{copy.loginTitle}</h1>
+        <p>{copy.loginSubtitle}</p>
         {error && <div className="error-box">{error}</div>}
         {info && <div className="info-box">{info}</div>}
         <form onSubmit={onSubmit} className="form-grid">

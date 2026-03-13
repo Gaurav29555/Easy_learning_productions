@@ -1,10 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useFixcartSettings } from "../context/FixcartSettingsContext";
 import logo from "../assets/fixcart-logo.svg";
+import LanguageRegionSelector from "./LanguageRegionSelector";
 import NotificationCenter from "./NotificationCenter";
 
 export default function Navbar() {
   const { auth, logout, isAuthenticated } = useAuth();
+  const { settings } = useFixcartSettings();
   const navigate = useNavigate();
 
   const onLogout = () => {
@@ -18,6 +21,10 @@ export default function Navbar() {
         <img src={logo} alt="fixcart logo" className="brand-logo" />
       </Link>
       <div className="nav-actions">
+        <div className="navbar-meta">
+          <LanguageRegionSelector />
+          <span className="market-pill">{settings.region}</span>
+        </div>
         {isAuthenticated ? (
           <>
             <NotificationCenter />

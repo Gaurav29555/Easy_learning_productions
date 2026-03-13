@@ -3,9 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { registerUser, registerWorker, sendOtp, verifyOtp } from "../api/fixcartApi";
 import LocationPicker from "../components/LocationPicker";
 import { useAuth } from "../context/AuthContext";
+import { useFixcartSettings } from "../context/FixcartSettingsContext";
 
 export default function RegisterPage() {
   const { login: saveAuth } = useAuth();
+  const { copy, phonePlaceholder } = useFixcartSettings();
   const navigate = useNavigate();
   const [accountType, setAccountType] = useState("CUSTOMER");
   const [error, setError] = useState("");
@@ -112,8 +114,8 @@ export default function RegisterPage() {
   return (
     <section className="auth-layout">
       <div className="auth-panel wide-auth-panel">
-        <h1>Create fixcart account</h1>
-        <p>Register as customer or worker and verify your email instantly.</p>
+        <h1>{copy.registerTitle}</h1>
+        <p>{copy.registerSubtitle}</p>
         {error && <div className="error-box">{error}</div>}
         {info && <div className="info-box">{info}</div>}
 
@@ -161,7 +163,7 @@ export default function RegisterPage() {
           />
           <input
             type="text"
-            placeholder="Phone (10-15 digits)"
+            placeholder={`Phone (${phonePlaceholder})`}
             value={form.phone}
             onChange={(e) => {
               setForm({ ...form, phone: e.target.value.replace(/\D/g, "") });
