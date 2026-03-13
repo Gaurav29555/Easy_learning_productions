@@ -21,7 +21,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Configuration
 @EnableMethodSecurity
@@ -72,7 +74,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.stream(allowedOrigins.split(",")).map(String::trim).toList());
+        Set<String> originPatterns = new LinkedHashSet<>(List.of(
+                "http://localhost:5173",
+                "https://easy-learning-productions.pages.dev",
+                "https://*.easy-learning-productions.pages.dev"
+        ));
+        originPatterns.addAll(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isBlank())
+                .toList());
+
+        configuration.setAllowedOriginPatterns(originPatterns.stream().toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

@@ -2,14 +2,19 @@ const FIXCART_API_BASE_URL =
   import.meta.env.VITE_FIXCART_API_URL || "http://localhost:8080";
 
 async function request(path, method = "GET", body, token) {
-  const response = await fetch(`${FIXCART_API_BASE_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
-    body: body ? JSON.stringify(body) : undefined
-  });
+  let response;
+  try {
+    response = await fetch(`${FIXCART_API_BASE_URL}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+  } catch (error) {
+    throw new Error("Cannot reach the fixcart backend right now. Check Render deployment and CORS settings.");
+  }
 
   if (!response.ok) {
     let message = "Request failed";
