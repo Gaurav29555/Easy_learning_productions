@@ -2,7 +2,7 @@ package com.fixcart.fixcart.controller;
 
 import com.fixcart.fixcart.dto.AddressSuggestionResponse;
 import com.fixcart.fixcart.dto.RouteEtaResponse;
-import com.fixcart.fixcart.service.AddressSearchService;
+import com.fixcart.fixcart.service.GeocodingService;
 import com.fixcart.fixcart.service.RoutePlanningService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class LocationController {
 
-    private final AddressSearchService addressSearchService;
+    private final GeocodingService geocodingService;
     private final RoutePlanningService routePlanningService;
 
     @GetMapping("/search")
@@ -28,7 +28,7 @@ public class LocationController {
             @RequestParam(required = false) Double nearLatitude,
             @RequestParam(required = false) Double nearLongitude
     ) {
-        return ResponseEntity.ok(addressSearchService.search(query, nearLatitude, nearLongitude));
+        return ResponseEntity.ok(geocodingService.search(query, nearLatitude, nearLongitude));
     }
 
     @GetMapping("/route-eta")

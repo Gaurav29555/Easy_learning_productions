@@ -26,15 +26,18 @@ public class VoiceIntentParserService {
             if (lowered.startsWith("es")) return "es";
             return "en";
         }
-        if (containsAny(normalized, "mera", "mujhe", "batao", "kal", "aaj", "paas", "book karo", "reschedule karo")) return "hi";
-        if (containsAny(normalized, "reservar", "cancela", "estado", "trabajador", "cerca", "mañana", "hoy")) return "es";
+        if (containsAny(normalized, "mera", "mujhe", "batao", "kal", "aaj", "paas", "book karo", "reschedule karo", "bhugtan", "madad")) return "hi";
+        if (containsAny(normalized, "reservar", "cancela", "estado", "trabajador", "cerca", "manana", "hoy", "pagar", "ayuda")) return "es";
         return "en";
     }
 
     private VoiceAction detectAction(String normalized) {
+        if (containsAny(normalized, "pay", "payment", "checkout", "pago", "pagar", "bhugtan", "pay now")) return VoiceAction.PAYMENT;
+        if (containsAny(normalized, "admin", "support", "escalate", "complaint", "manager", "madad", "ayuda")) return VoiceAction.ESCALATE;
+        if (containsAny(normalized, "notify eta", "alert eta", "eta batao aur notify", "notificar eta", "arrival alert", "notify when arriving")) return VoiceAction.ETA_NOTIFY;
         if (containsAny(normalized, "cancel", "cancel karo", "cancela", "radd", "cancelar")) return VoiceAction.CANCEL;
         if (containsAny(normalized, "reschedule", "reschedule karo", "reprograma", "schedule change", "kal kar do")) return VoiceAction.RESCHEDULE;
-        if (containsAny(normalized, "track", "where is my worker", "worker kaha hai", "trabajador donde", "tracking", "eta")) return VoiceAction.TRACK;
+        if (containsAny(normalized, "track", "where is my worker", "worker kaha hai", "trabajador donde", "tracking", "eta", "how long", "kitna time", "cuanto tarda")) return VoiceAction.TRACK;
         if (containsAny(normalized, "status", "booking status", "mera booking", "estado")) return VoiceAction.STATUS;
         if (containsAny(normalized, "nearest", "nearby", "find", "paas", "cerca")) return VoiceAction.FIND_NEARBY;
         if (containsAny(normalized, "book", "assign", "worker for me", "chahiye", "book karo", "bhejo", "reservar", "necesito")) return VoiceAction.BOOK;
@@ -54,15 +57,19 @@ public class VoiceIntentParserService {
 
     private LocalDateTime detectSchedule(String normalized) {
         LocalDateTime base = LocalDateTime.now();
-        boolean tomorrow = containsAny(normalized, "tomorrow", "kal", "mañana");
+        boolean tomorrow = containsAny(normalized, "tomorrow", "kal", "manana");
         boolean today = containsAny(normalized, "today", "aaj", "hoy");
 
-        if (!tomorrow && !today && !containsAny(normalized, "morning", "evening", "afternoon", "night", "subah", "shaam", "tarde", "noche")) {
+        if (!tomorrow
+                && !today
+                && !containsAny(normalized, "morning", "evening", "afternoon", "night", "subah", "shaam", "tarde", "noche", "in 1 hour", "ek ghante", "una hora", "in 2 hours", "do ghante", "dos horas")) {
             return null;
         }
 
         LocalDateTime target = tomorrow ? base.plusDays(1) : base;
-        if (containsAny(normalized, "morning", "subah", "mañana")) return target.withHour(9).withMinute(0).withSecond(0).withNano(0);
+        if (containsAny(normalized, "in 1 hour", "ek ghante", "una hora")) return base.plusHours(1).withMinute(0).withSecond(0).withNano(0);
+        if (containsAny(normalized, "in 2 hours", "do ghante", "dos horas")) return base.plusHours(2).withMinute(0).withSecond(0).withNano(0);
+        if (containsAny(normalized, "morning", "subah", "manana")) return target.withHour(9).withMinute(0).withSecond(0).withNano(0);
         if (containsAny(normalized, "afternoon", "dopahar", "tarde")) return target.withHour(14).withMinute(0).withSecond(0).withNano(0);
         if (containsAny(normalized, "evening", "shaam", "noche")) return target.withHour(18).withMinute(0).withSecond(0).withNano(0);
         if (containsAny(normalized, "night", "raat")) return target.withHour(20).withMinute(0).withSecond(0).withNano(0);
@@ -100,6 +107,9 @@ public class VoiceIntentParserService {
         CANCEL,
         RESCHEDULE,
         TRACK,
+        PAYMENT,
+        ESCALATE,
+        ETA_NOTIFY,
         UNKNOWN
     }
 

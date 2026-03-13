@@ -121,6 +121,21 @@ public class PaymentService {
     }
 
     @Transactional
+    public PaymentResponse createVoiceOrderForBooking(Long customerId, Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        if (!booking.getCustomer().getId().equals(customerId)) {
+            throw new BadRequestException("Booking does not belong to this customer");
+        }
+        return createOrder(customerId, UserRole.CUSTOMER, new CreatePaymentOrderRequest(
+                bookingId,
+                booking.getEstimatedPrice(),
+                "INR",
+                PaymentProvider.MOCK
+        ));
+    }
+
+    @Transactional
     public WebhookAckResponse handleRazorpayWebhook(String payload, String signature) {
         if (razorpayWebhookSecret.isBlank()) {
             throw new BadRequestException("Razorpay webhook secret is not configured");

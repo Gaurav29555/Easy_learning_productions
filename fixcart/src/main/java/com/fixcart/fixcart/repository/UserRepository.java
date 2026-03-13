@@ -2,6 +2,7 @@ package com.fixcart.fixcart.repository;
 
 import com.fixcart.fixcart.entity.User;
 import com.fixcart.fixcart.entity.enums.UserRole;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -16,4 +17,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByPhone(String phone);
 
     long countByRole(UserRole role);
+
+    List<User> findByRole(UserRole role);
 }

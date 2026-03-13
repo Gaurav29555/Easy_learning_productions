@@ -3,6 +3,7 @@ package com.fixcart.fixcart.service;
 import com.fixcart.fixcart.dto.NotificationResponse;
 import com.fixcart.fixcart.entity.Notification;
 import com.fixcart.fixcart.entity.User;
+import com.fixcart.fixcart.entity.enums.UserRole;
 import com.fixcart.fixcart.exception.BadRequestException;
 import com.fixcart.fixcart.exception.ResourceNotFoundException;
 import com.fixcart.fixcart.repository.NotificationRepository;
@@ -34,6 +35,11 @@ public class NotificationService {
         NotificationResponse response = toResponse(saved);
         messagingTemplate.convertAndSend("/topic/user/" + userId + "/notifications", response);
         return response;
+    }
+
+    @Transactional
+    public void sendToRole(UserRole role, String type, String title, String message) {
+        userRepository.findByRole(role).forEach(user -> sendToUser(user.getId(), type, title, message));
     }
 
     public List<NotificationResponse> getUserNotifications(Long userId) {

@@ -22,8 +22,11 @@ public class VoiceCommandService {
     private final BookingService bookingService;
     private final WorkerService workerService;
     private final TrackingService trackingService;
-    private final AddressSearchService addressSearchService;
+    private final GeocodingService geocodingService;
     private final VoiceIntentParserService voiceIntentParserService;
+    private final PaymentService paymentService;
+    private final NotificationService notificationService;
+    private final AuditLogService auditLogService;
     private final com.fixcart.fixcart.repository.BookingRepository bookingRepository;
 
     public VoiceCommandResponse handleCustomerCommand(Long customerId, VoiceCommandRequest request) {
@@ -36,6 +39,9 @@ public class VoiceCommandService {
         suggestions.add("Say: fixcart mera booking status batao");
         suggestions.add("Say: cancel my latest booking");
         suggestions.add("Say: track my worker");
+        suggestions.add("Say: pay for my latest booking");
+        suggestions.add("Say: connect me to support");
+        suggestions.add("Say: notify me when worker is arriving");
 
         if (intent.action() == VoiceIntentParserService.VoiceAction.STATUS) {
             Booking latestBooking = bookingRepository.findTop1ByCustomerIdOrderByCreatedAtDesc(customerId);
@@ -75,6 +81,67 @@ public class VoiceCommandService {
                     "Your worker is about " + route.etaMinutes() + " minutes away.",
                     response,
                     route,
+                    List.of(),
+                    List.of(),
+                    suggestions
+            );
+        }
+
+        if (intent.action() == VoiceIntentParserService.VoiceAction.ETA_NOTIFY) {
+            Booking latestBooking = requireActionableBooking(customerId);
+            if (latestBooking.getWorker() == null) {
+                throw new BadRequestException("No worker is assigned yet, so ETA notification cannot be created.");
+            }
+            var route = trackingService.simulateRoute(latestBooking.getId(), customerId, UserRole.CUSTOMER);
+            notificationService.sendToUser(
+                    customerId,
+                    "WORKER_ETA",
+                    "Worker ETA notification",
+                    "Your fixcart worker is approximately " + route.etaMinutes() + " minutes away."
+            );
+            var response = bookingService.toResponse(latestBooking);
+            return new VoiceCommandResponse(
+                    "ETA_NOTIFY",
+                    "I sent a fixcart ETA notification. Your worker is about " + route.etaMinutes() + " minutes away.",
+                    response,
+                    route,
+                    List.of(),
+                    List.of(),
+                    suggestions
+            );
+        }
+
+        if (intent.action() == VoiceIntentParserService.VoiceAction.PAYMENT) {
+            Booking latestBooking = requireActionableBooking(customerId);
+            var payment = paymentService.createVoiceOrderForBooking(customerId, latestBooking.getId());
+            var response = bookingService.toResponse(latestBooking);
+            String spoken = "A payment order was created for your latest fixcart booking. Amount is "
+                    + payment.amount() + " " + payment.currency() + ".";
+            return new VoiceCommandResponse("PAYMENT_ORDER_CREATED", spoken, response, null, List.of(), List.of(), suggestions);
+        }
+
+        if (intent.action() == VoiceIntentParserService.VoiceAction.ESCALATE) {
+            Booking latestBooking = requireActionableBooking(customerId);
+            notificationService.sendToRole(
+                    UserRole.ADMIN,
+                    "CUSTOMER_ESCALATION",
+                    "Customer requested help",
+                    "fixcart customer #" + customerId + " requested admin support for booking #" + latestBooking.getId() + "."
+            );
+            auditLogService.record(
+                    com.fixcart.fixcart.entity.enums.AuditActionType.BOOKING_STATUS_UPDATED,
+                    "USER",
+                    customerId,
+                    "BOOKING",
+                    latestBooking.getId(),
+                    "Customer escalated booking to admin via voice assistant"
+            );
+            var response = bookingService.toResponse(latestBooking);
+            return new VoiceCommandResponse(
+                    "ADMIN_ESCALATION",
+                    "I sent your issue to the fixcart support team. An admin can now review your booking.",
+                    response,
+                    null,
                     List.of(),
                     List.of(),
                     suggestions
@@ -157,14 +224,14 @@ public class VoiceCommandService {
         if (candidate == null || candidate.isBlank()) {
             return null;
         }
-        return addressSearchService.resolveBestMatch(candidate, latitude, longitude);
+        return geocodingService.resolveBestMatch(candidate, latitude, longitude);
     }
 
     private List<AddressSuggestionResponse> addressSuggestionList(String addressHint, Double latitude, Double longitude) {
         if (addressHint == null || addressHint.isBlank()) {
             return List.of();
         }
-        return addressSearchService.search(addressHint, latitude, longitude);
+        return geocodingService.search(addressHint, latitude, longitude);
     }
 
     private String formatType(WorkerType workerType) {
