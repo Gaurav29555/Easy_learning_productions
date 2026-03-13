@@ -357,6 +357,48 @@ textarea:focus {
   border-color: #dce7df;
 }
 
+.autocomplete-wrap {
+  position: relative;
+  display: grid;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.autocomplete-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 15;
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.autocomplete-item {
+  width: 100%;
+  text-align: left;
+  background: #fbfefc;
+  color: var(--ink);
+  border-color: #dce7df;
+}
+
+.autocomplete-item small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
 .list-item p {
   margin: 6px 0;
   color: var(--muted);

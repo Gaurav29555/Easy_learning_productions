@@ -5,7 +5,6 @@ import {
   confirmPayment,
   createBooking,
   createPaymentOrder,
-  searchAddresses,
   getServiceCatalog,
   getRouteSimulation,
   findNearbyWorkers,
@@ -15,6 +14,7 @@ import {
   updateBookingStatus
 } from "../api/fixcartApi";
 import LiveTrackingMap from "../components/LiveTrackingMap";
+import AddressAutocompleteInput from "../components/AddressAutocompleteInput";
 import LocationPicker from "../components/LocationPicker";
 import VoiceAssistant from "../components/VoiceAssistant";
 import { useAuth } from "../context/AuthContext";
@@ -42,10 +42,6 @@ export default function CustomerDashboard() {
   const [confirmForm, setConfirmForm] = useState({ providerOrderId: "", providerPaymentId: "" });
   const [trackingBookingId, setTrackingBookingId] = useState("");
   const [selectedBookingIdForMap, setSelectedBookingIdForMap] = useState("");
-  const [bookingAddressResults, setBookingAddressResults] = useState([]);
-  const [nearbyAddressQuery, setNearbyAddressQuery] = useState("");
-  const [nearbyAddressResults, setNearbyAddressResults] = useState([]);
-
   const [bookingForm, setBookingForm] = useState({
     serviceType: "PLUMBER",
     serviceAddress: "",
@@ -57,6 +53,7 @@ export default function CustomerDashboard() {
 
   const [nearbyForm, setNearbyForm] = useState({
     workerType: "PLUMBER",
+    searchAddress: "",
     latitude: null,
     longitude: null,
     radiusKm: 20
@@ -187,38 +184,6 @@ export default function CustomerDashboard() {
     }
   };
 
-  const onSearchBookingAddress = async () => {
-    if (!bookingForm.serviceAddress.trim()) {
-      setError("Enter an address to search.");
-      return;
-    }
-    setError("");
-    try {
-      const data = await searchAddresses(
-        {
-          query: bookingForm.serviceAddress,
-          ...(bookingForm.customerLatitude ? { nearLatitude: bookingForm.customerLatitude } : {}),
-          ...(bookingForm.customerLongitude ? { nearLongitude: bookingForm.customerLongitude } : {})
-        },
-        auth.token
-      );
-      setBookingAddressResults(data);
-      if (data[0]) {
-        setBookingForm((current) => ({
-          ...current,
-          serviceAddress: data[0].label,
-          customerLatitude: data[0].latitude,
-          customerLongitude: data[0].longitude
-        }));
-        setInfo(`Resolved address to ${data[0].label}.`);
-      } else {
-        setInfo("No sample address match found. You can still pin on the map.");
-      }
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   const onFindNearby = async (event) => {
     event.preventDefault();
     setError("");
@@ -235,30 +200,6 @@ export default function CustomerDashboard() {
       );
       setWorkers(data);
       setInfo(`Found ${data.length} nearby workers.`);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const onSearchNearbyAddress = async () => {
-    if (!nearbyAddressQuery.trim()) {
-      setError("Enter an address or area to search nearby.");
-      return;
-    }
-    setError("");
-    try {
-      const data = await searchAddresses({ query: nearbyAddressQuery }, auth.token);
-      setNearbyAddressResults(data);
-      if (data[0]) {
-        setNearbyForm((current) => ({
-          ...current,
-          latitude: data[0].latitude,
-          longitude: data[0].longitude
-        }));
-        setInfo(`Nearby search anchored to ${data[0].label}.`);
-      } else {
-        setInfo("No address result found. Use the map picker instead.");
-      }
     } catch (err) {
       setError(err.message);
     }
@@ -375,38 +316,23 @@ export default function CustomerDashboard() {
               </option>
             ))}
           </select>
-          <input
-            placeholder="Service Address"
+          <AddressAutocompleteInput
+            label="Service Address"
             value={bookingForm.serviceAddress}
-            onChange={(e) => setBookingForm({ ...bookingForm, serviceAddress: e.target.value })}
-            required
+            placeholder="Start typing an address or landmark"
+            nearLatitude={bookingForm.customerLatitude}
+            nearLongitude={bookingForm.customerLongitude}
+            onChange={(nextValue) => setBookingForm({ ...bookingForm, serviceAddress: nextValue })}
+            onSelect={(item) => {
+              setBookingForm((current) => ({
+                ...current,
+                serviceAddress: item.label,
+                customerLatitude: item.latitude,
+                customerLongitude: item.longitude
+              }));
+              setInfo(`Resolved address to ${item.label}.`);
+            }}
           />
-          <div className="action-row">
-            <button type="button" className="ghost-btn" onClick={onSearchBookingAddress}>
-              Resolve Address
-            </button>
-          </div>
-          {bookingAddressResults.length > 0 && (
-            <div className="list">
-              {bookingAddressResults.map((item) => (
-                <button
-                  key={`${item.label}-${item.latitude}-${item.longitude}`}
-                  type="button"
-                  className="address-pick"
-                  onClick={() =>
-                    setBookingForm((current) => ({
-                      ...current,
-                      serviceAddress: item.label,
-                      customerLatitude: item.latitude,
-                      customerLongitude: item.longitude
-                    }))
-                  }
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
           <textarea
             placeholder="Notes (optional)"
             value={bookingForm.notes}
@@ -452,36 +378,23 @@ export default function CustomerDashboard() {
             value={nearbyForm.radiusKm}
             onChange={(e) => setNearbyForm({ ...nearbyForm, radiusKm: e.target.value })}
           />
-          <input
-            placeholder="Area or address for nearby search"
-            value={nearbyAddressQuery}
-            onChange={(e) => setNearbyAddressQuery(e.target.value)}
+          <AddressAutocompleteInput
+            label="Search Area"
+            value={nearbyForm.searchAddress || ""}
+            placeholder="Type area, landmark, or city"
+            nearLatitude={nearbyForm.latitude}
+            nearLongitude={nearbyForm.longitude}
+            onChange={(nextValue) => setNearbyForm({ ...nearbyForm, searchAddress: nextValue })}
+            onSelect={(item) => {
+              setNearbyForm((current) => ({
+                ...current,
+                searchAddress: item.label,
+                latitude: item.latitude,
+                longitude: item.longitude
+              }));
+              setInfo(`Nearby search anchored to ${item.label}.`);
+            }}
           />
-          <div className="action-row">
-            <button type="button" className="ghost-btn" onClick={onSearchNearbyAddress}>
-              Search Address
-            </button>
-          </div>
-          {nearbyAddressResults.length > 0 && (
-            <div className="list">
-              {nearbyAddressResults.map((item) => (
-                <button
-                  key={`${item.label}-${item.latitude}-${item.longitude}`}
-                  type="button"
-                  className="address-pick"
-                  onClick={() =>
-                    setNearbyForm((current) => ({
-                      ...current,
-                      latitude: item.latitude,
-                      longitude: item.longitude
-                    }))
-                  }
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
 
           <LocationPicker
             title="Search Around Location"

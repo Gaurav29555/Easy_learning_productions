@@ -40,7 +40,7 @@ public class VoiceIntentParserService {
         if (containsAny(normalized, "track", "where is my worker", "worker kaha hai", "trabajador donde", "tracking", "eta", "how long", "kitna time", "cuanto tarda")) return VoiceAction.TRACK;
         if (containsAny(normalized, "status", "booking status", "mera booking", "estado")) return VoiceAction.STATUS;
         if (containsAny(normalized, "nearest", "nearby", "find", "paas", "cerca")) return VoiceAction.FIND_NEARBY;
-        if (containsAny(normalized, "book", "assign", "worker for me", "chahiye", "book karo", "bhejo", "reservar", "necesito")) return VoiceAction.BOOK;
+        if (containsAny(normalized, "book", "assign", "worker for me", "chahiye", "book karo", "bhejo", "reservar", "necesito", "book it", "reserve it", "isko book karo")) return VoiceAction.BOOK;
         return VoiceAction.UNKNOWN;
     }
 
@@ -98,6 +98,10 @@ public class VoiceIntentParserService {
 
     private String normalize(String transcript) {
         return transcript == null ? "" : transcript.trim().toLowerCase(Locale.ROOT).replaceAll("[\\p{Punct}]+", " ");
+    }
+
+    public boolean isFollowUpReference(String normalizedTranscript) {
+        return containsAny(normalizedTranscript, "it", "that", "same", "same one", "same service", "isko", "usi", "ese", "eso", "mismo");
     }
 
     public enum VoiceAction {

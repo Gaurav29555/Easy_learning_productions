@@ -28,6 +28,7 @@ public class TrackingService {
     private final WorkerService workerService;
     private final NotificationService notificationService;
     private final RoutePlanningService routePlanningService;
+    private final EtaSubscriptionService etaSubscriptionService;
 
     @Transactional
     public TrackingEventResponse publishLocation(Long bookingId, Long userId, UserRole role, TrackingUpdateRequest request) {
@@ -65,6 +66,7 @@ public class TrackingService {
                     "Your fixcart worker is within " + String.format("%.2f", response.distanceToDestinationKm()) + " km."
             );
         }
+        etaSubscriptionService.processDistanceUpdate(booking, response.distanceToDestinationKm(), response.etaMinutes());
         return response;
     }
 
