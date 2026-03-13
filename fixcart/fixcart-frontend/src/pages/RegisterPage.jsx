@@ -80,7 +80,7 @@ export default function RegisterPage() {
     try {
       const data = await sendOtp({ email: normalizedEmail, purpose: "REGISTER" });
       setForm((current) => ({ ...current, email: normalizedEmail }));
-      setInfo(`OTP sent to email. ${data.debugOtp ? `Dev OTP: ${data.debugOtp}` : "Check your inbox."}`);
+      setInfo(data.debugOtp ? `Your fixcart OTP is ${data.debugOtp}. Enter it below to continue.` : "OTP generated. Enter it below to continue.");
     } catch (err) {
       setError(err.message);
     }
