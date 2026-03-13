@@ -19,6 +19,8 @@ function HomeRedirect() {
 }
 
 export default function App() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="app-shell">
       <Navbar />
