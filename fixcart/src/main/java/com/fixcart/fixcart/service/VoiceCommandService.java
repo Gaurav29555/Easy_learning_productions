@@ -60,14 +60,14 @@ public class VoiceCommandService {
             var response = bookingService.toResponse(latestBooking);
             String spoken = "Your latest fixcart booking status is " + latestBooking.getStatus().name().toLowerCase(Locale.ROOT).replace('_', ' ') + ".";
             voiceConversationMemoryService.remember(customerId, "BOOKING_STATUS", latestBooking.getServiceType(), latestBooking.getServiceAddress(), latestBooking.getCustomerLatitude(), latestBooking.getCustomerLongitude(), latestBooking.getId());
-            return new VoiceCommandResponse("BOOKING_STATUS", spoken, response, null, List.of(), List.of(), suggestions);
+            return new VoiceCommandResponse("BOOKING_STATUS", spoken, response, null, List.of(), List.of(), null, suggestions);
         }
 
         if (intent.action() == VoiceIntentParserService.VoiceAction.CANCEL) {
             Booking latestBooking = requireActionableBooking(customerId);
             var response = bookingService.updateStatus(latestBooking.getId(), BookingStatus.CANCELLED, "Cancelled by fixcart voice assistant", customerId, UserRole.CUSTOMER);
             voiceConversationMemoryService.remember(customerId, "BOOKING_CANCELLED", latestBooking.getServiceType(), latestBooking.getServiceAddress(), latestBooking.getCustomerLatitude(), latestBooking.getCustomerLongitude(), latestBooking.getId());
-            return new VoiceCommandResponse("BOOKING_CANCELLED", "Your latest active fixcart booking has been cancelled.", response, null, List.of(), List.of(), suggestions);
+            return new VoiceCommandResponse("BOOKING_CANCELLED", "Your latest active fixcart booking has been cancelled.", response, null, List.of(), List.of(), null, suggestions);
         }
 
         if (intent.action() == VoiceIntentParserService.VoiceAction.RESCHEDULE) {
@@ -78,7 +78,7 @@ public class VoiceCommandService {
             var response = bookingService.rescheduleBooking(latestBooking.getId(), intent.requestedSchedule(), customerId, UserRole.CUSTOMER);
             String spoken = "Your latest fixcart booking was rescheduled for " + intent.requestedSchedule().toLocalDate() + " at " + intent.requestedSchedule().toLocalTime() + ".";
             voiceConversationMemoryService.remember(customerId, "BOOKING_RESCHEDULED", latestBooking.getServiceType(), latestBooking.getServiceAddress(), latestBooking.getCustomerLatitude(), latestBooking.getCustomerLongitude(), latestBooking.getId());
-            return new VoiceCommandResponse("BOOKING_RESCHEDULED", spoken, response, null, List.of(), List.of(), suggestions);
+            return new VoiceCommandResponse("BOOKING_RESCHEDULED", spoken, response, null, List.of(), List.of(), null, suggestions);
         }
 
         if (intent.action() == VoiceIntentParserService.VoiceAction.TRACK) {
@@ -95,6 +95,7 @@ public class VoiceCommandService {
                     route,
                     List.of(),
                     List.of(),
+                    null,
                     suggestions
             );
         }
@@ -105,16 +106,18 @@ public class VoiceCommandService {
                 throw new BadRequestException("No worker is assigned yet, so ETA notification cannot be created.");
             }
             var route = trackingService.simulateRoute(latestBooking.getId(), customerId, UserRole.CUSTOMER);
-            etaSubscriptionService.subscribe(latestBooking, customerId, 2.0d);
+            double thresholdKm = intent.etaThresholdKm() != null ? intent.etaThresholdKm() : 2.0d;
+            etaSubscriptionService.subscribe(latestBooking, customerId, thresholdKm);
             var response = bookingService.toResponse(latestBooking);
             voiceConversationMemoryService.remember(customerId, "ETA_NOTIFY", latestBooking.getServiceType(), latestBooking.getServiceAddress(), latestBooking.getCustomerLatitude(), latestBooking.getCustomerLongitude(), latestBooking.getId());
             return new VoiceCommandResponse(
                     "ETA_NOTIFY",
-                    "I subscribed you to a fixcart arrival alert. You will be notified when the worker is within 2 kilometers.",
+                    "I subscribed you to a fixcart arrival alert. You will be notified when the worker is within " + thresholdKm + " kilometers.",
                     response,
                     route,
                     List.of(),
                     List.of(),
+                    thresholdKm,
                     suggestions
             );
         }
@@ -126,7 +129,7 @@ public class VoiceCommandService {
             String spoken = "A payment order was created for your latest fixcart booking. Amount is "
                     + payment.amount() + " " + payment.currency() + ".";
             voiceConversationMemoryService.remember(customerId, "PAYMENT_ORDER_CREATED", latestBooking.getServiceType(), latestBooking.getServiceAddress(), latestBooking.getCustomerLatitude(), latestBooking.getCustomerLongitude(), latestBooking.getId());
-            return new VoiceCommandResponse("PAYMENT_ORDER_CREATED", spoken, response, null, List.of(), List.of(), suggestions);
+            return new VoiceCommandResponse("PAYMENT_ORDER_CREATED", spoken, response, null, List.of(), List.of(), null, suggestions);
         }
 
         if (intent.action() == VoiceIntentParserService.VoiceAction.ESCALATE) {
@@ -153,6 +156,7 @@ public class VoiceCommandService {
                     null,
                     List.of(),
                     List.of(),
+                    null,
                     suggestions
             );
         }
@@ -184,6 +188,7 @@ public class VoiceCommandService {
                     null,
                     workers,
                     resolvedAddress == null ? addressSuggestionList(effectiveAddressHint, effectiveLatitude, effectiveLongitude) : List.of(resolvedAddress),
+                    null,
                     suggestions
             );
         }
@@ -218,6 +223,7 @@ public class VoiceCommandService {
                     null,
                     List.of(),
                     resolvedAddress == null ? addressSuggestionList(effectiveAddressHint, effectiveLatitude, effectiveLongitude) : List.of(resolvedAddress),
+                    null,
                     suggestions
             );
         }

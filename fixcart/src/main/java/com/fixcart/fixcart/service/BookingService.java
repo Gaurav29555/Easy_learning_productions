@@ -118,18 +118,29 @@ public class BookingService {
 
     @Transactional
     public BookingResponse assignNearestWorker(Long bookingId) {
+        return assignNearestWorker(bookingId, null);
+    }
+
+    @Transactional
+    public BookingResponse assignNearestWorker(Long bookingId, Long excludedWorkerId) {
         Booking booking = findBookingOrThrow(bookingId);
         if (booking.getStatus() == BookingStatus.COMPLETED || booking.getStatus() == BookingStatus.CANCELLED) {
             throw new BadRequestException("Cannot reassign completed or cancelled booking");
         }
 
+        Worker previousWorker = booking.getWorker();
         WorkerService.WorkerDistance nearest = findBestWorkerWithRadiusExpansion(
                 booking.getCustomerLatitude(),
                 booking.getCustomerLongitude(),
-                booking.getServiceType()
+                booking.getServiceType(),
+                excludedWorkerId
         );
 
         if (nearest == null) {
+            if (previousWorker != null) {
+                previousWorker.setAvailable(true);
+                workerRepository.save(previousWorker);
+            }
             booking.setWorker(null);
             booking.setStatus(BookingStatus.PENDING);
             Booking saved = bookingRepository.save(booking);
@@ -138,6 +149,10 @@ public class BookingService {
         }
 
         Worker worker = nearest.getWorker();
+        if (previousWorker != null && !previousWorker.getId().equals(worker.getId())) {
+            previousWorker.setAvailable(true);
+            workerRepository.save(previousWorker);
+        }
         worker.setAvailable(false);
         workerRepository.save(worker);
 
@@ -256,11 +271,12 @@ public class BookingService {
     private WorkerService.WorkerDistance findBestWorkerWithRadiusExpansion(
             double latitude,
             double longitude,
-            com.fixcart.fixcart.entity.enums.WorkerType workerType
+            com.fixcart.fixcart.entity.enums.WorkerType workerType,
+            Long excludedWorkerId
     ) {
         double[] expansion = new double[]{assignmentRadiusKm, assignmentRadiusKm * 1.5, assignmentRadiusKm * 2};
         for (double radius : expansion) {
-            WorkerService.WorkerDistance candidate = workerService.findNearestWorker(latitude, longitude, workerType, radius);
+            WorkerService.WorkerDistance candidate = workerService.findNearestWorker(latitude, longitude, workerType, radius, excludedWorkerId);
             if (candidate != null) {
                 return candidate;
             }

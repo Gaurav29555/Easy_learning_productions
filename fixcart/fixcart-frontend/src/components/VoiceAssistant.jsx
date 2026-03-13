@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { executeVoiceCommand } from "../api/fixcartApi";
 import { useAuth } from "../context/AuthContext";
 import { useFixcartSettings } from "../context/FixcartSettingsContext";
 
 const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
 const speechSynthesisApi = window.speechSynthesis;
+const FIXCART_VOICE_TIMELINE_KEY = "fixcart_voice_timeline";
 
 export default function VoiceAssistant({ onCommandResult }) {
   const { auth } = useAuth();
@@ -14,8 +15,19 @@ export default function VoiceAssistant({ onCommandResult }) {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState(copy.voiceCta);
+  const [timeline, setTimeline] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(FIXCART_VOICE_TIMELINE_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   const isSupported = useMemo(() => Boolean(SpeechRecognitionApi), []);
+
+  useEffect(() => {
+    localStorage.setItem(FIXCART_VOICE_TIMELINE_KEY, JSON.stringify(timeline.slice(0, 20)));
+  }, [timeline]);
 
   const speak = (text) => {
     if (!speechSynthesisApi || !text) return;
@@ -59,10 +71,33 @@ export default function VoiceAssistant({ onCommandResult }) {
         auth.token
       );
       setMessage(response.spokenResponse);
+      setTimeline((current) => [
+        {
+          id: Date.now(),
+          role: "assistant",
+          transcript: spokenText,
+          response: response.spokenResponse,
+          action: response.action,
+          thresholdKm: response.etaNotificationThresholdKm,
+          createdAt: new Date().toISOString()
+        },
+        ...current
+      ].slice(0, 20));
       speak(response.spokenResponse);
       onCommandResult?.(response);
     } catch (error) {
       setMessage(error.message);
+      setTimeline((current) => [
+        {
+          id: Date.now(),
+          role: "assistant",
+          transcript: spokenText,
+          response: error.message,
+          action: "ERROR",
+          createdAt: new Date().toISOString()
+        },
+        ...current
+      ].slice(0, 20));
       speak(error.message);
     } finally {
       setLoading(false);
@@ -82,6 +117,15 @@ export default function VoiceAssistant({ onCommandResult }) {
     recognition.onresult = async (event) => {
       const spokenText = event.results[0][0].transcript;
       setTranscript(spokenText);
+      setTimeline((current) => [
+        {
+          id: Date.now(),
+          role: "user",
+          transcript: spokenText,
+          createdAt: new Date().toISOString()
+        },
+        ...current
+      ].slice(0, 20));
       await submitCommand(spokenText);
     };
     recognition.onerror = () => {
@@ -100,6 +144,15 @@ export default function VoiceAssistant({ onCommandResult }) {
       setMessage("Enter or speak a command first.");
       return;
     }
+    setTimeline((current) => [
+      {
+        id: Date.now(),
+        role: "user",
+        transcript: transcript.trim(),
+        createdAt: new Date().toISOString()
+      },
+      ...current
+    ].slice(0, 20));
     await submitCommand(transcript.trim());
   };
 
@@ -136,6 +189,29 @@ export default function VoiceAssistant({ onCommandResult }) {
       <div className="assistant-response">
         <strong>Fixcart says</strong>
         <p>{message}</p>
+      </div>
+      <div className="voice-timeline">
+        <div className="voice-timeline-head">
+          <strong>Voice Timeline</strong>
+          <button type="button" className="ghost-btn" onClick={() => setTimeline([])}>
+            Clear
+          </button>
+        </div>
+        <div className="list">
+          {timeline.map((item) => (
+            <article key={item.id} className={`list-item voice-entry voice-entry-${item.role}`}>
+              <strong>{item.role === "user" ? "You" : "fixcart"}</strong>
+              <p>{item.role === "user" ? item.transcript : item.response}</p>
+              {item.role === "assistant" && item.transcript && (
+                <small className="muted">Command: {item.transcript}</small>
+              )}
+              {item.thresholdKm && (
+                <small className="muted">ETA alert threshold: {item.thresholdKm} km</small>
+              )}
+            </article>
+          ))}
+          {timeline.length === 0 && <p className="muted">Your multi-turn voice timeline will appear here.</p>}
+        </div>
       </div>
     </section>
   );

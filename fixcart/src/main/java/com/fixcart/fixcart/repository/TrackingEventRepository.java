@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TrackingEventRepository extends JpaRepository<TrackingEvent, Long> {
 
     List<TrackingEvent> findTop50ByBookingIdOrderByCreatedAtDesc(Long bookingId);
+
+    TrackingEvent findTop1ByBookingIdOrderByCreatedAtDesc(Long bookingId);
 }

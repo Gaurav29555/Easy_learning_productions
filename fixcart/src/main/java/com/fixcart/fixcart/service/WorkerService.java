@@ -34,8 +34,13 @@ public class WorkerService {
     }
 
     public WorkerDistance findNearestWorker(double latitude, double longitude, WorkerType workerType, double radiusKm) {
+        return findNearestWorker(latitude, longitude, workerType, radiusKm, null);
+    }
+
+    public WorkerDistance findNearestWorker(double latitude, double longitude, WorkerType workerType, double radiusKm, Long excludedWorkerId) {
         List<BookingStatus> activeStatuses = Arrays.asList(BookingStatus.ASSIGNED, BookingStatus.IN_PROGRESS);
         return workerRepository.findByAvailableTrueAndWorkerTypeAndApprovalStatus(workerType, WorkerApprovalStatus.APPROVED).stream()
+                .filter(worker -> excludedWorkerId == null || !worker.getId().equals(excludedWorkerId))
                 .map(worker -> {
                     double distance = haversineKm(latitude, longitude, worker.getLatitude(), worker.getLongitude());
                     long activeBookings = bookingRepository.countByWorkerIdAndStatusIn(worker.getId(), activeStatuses);

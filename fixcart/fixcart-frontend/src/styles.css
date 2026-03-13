@@ -504,6 +504,28 @@ textarea:focus {
   color: var(--muted);
 }
 
+.voice-timeline {
+  margin-top: 14px;
+  border-top: 1px solid #dce7df;
+  padding-top: 14px;
+}
+
+.voice-timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.voice-entry-user {
+  background: #f4fbff;
+}
+
+.voice-entry-assistant {
+  background: #fbfffd;
+}
+
 .service-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

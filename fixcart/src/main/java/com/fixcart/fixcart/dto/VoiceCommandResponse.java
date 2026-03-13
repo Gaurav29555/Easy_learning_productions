@@ -9,6 +9,7 @@ public record VoiceCommandResponse(
         RouteSimulationResponse route,
         List<WorkerResponse> workers,
         List<AddressSuggestionResponse> addressSuggestions,
+        Double etaNotificationThresholdKm,
         List<String> suggestions
 ) {
 }

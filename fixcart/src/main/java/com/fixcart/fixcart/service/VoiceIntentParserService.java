@@ -16,7 +16,8 @@ public class VoiceIntentParserService {
         VoiceAction action = detectAction(normalized);
         LocalDateTime requestedSchedule = detectSchedule(normalized);
         String addressHint = extractAddressHint(normalized, serviceAddress);
-        return new ParsedVoiceIntent(language, action, workerType, requestedSchedule, addressHint, normalized);
+        Double etaThresholdKm = detectEtaThresholdKm(normalized);
+        return new ParsedVoiceIntent(language, action, workerType, requestedSchedule, addressHint, etaThresholdKm, normalized);
     }
 
     private String detectLanguage(String normalized, String languageCode) {
@@ -76,6 +77,14 @@ public class VoiceIntentParserService {
         return target.plusHours(2).withMinute(0).withSecond(0).withNano(0);
     }
 
+    private Double detectEtaThresholdKm(String normalized) {
+        if (containsAny(normalized, "5 km", "5 kilometer", "5 kilometers", "5 kilometre", "5 kilometro")) return 5.0d;
+        if (containsAny(normalized, "3 km", "3 kilometer", "3 kilometers", "3 kilometre", "3 kilometro")) return 3.0d;
+        if (containsAny(normalized, "1 km", "1 kilometer", "1 kilometers", "1 kilometre", "1 kilometro")) return 1.0d;
+        if (containsAny(normalized, "500 meter", "500 meters", "0 5 km")) return 0.5d;
+        return null;
+    }
+
     private String extractAddressHint(String normalized, String explicitServiceAddress) {
         if (explicitServiceAddress != null && !explicitServiceAddress.isBlank()) {
             return explicitServiceAddress.trim();
@@ -123,6 +132,7 @@ public class VoiceIntentParserService {
             WorkerType workerType,
             LocalDateTime requestedSchedule,
             String addressHint,
+            Double etaThresholdKm,
             String normalizedTranscript
     ) {
     }

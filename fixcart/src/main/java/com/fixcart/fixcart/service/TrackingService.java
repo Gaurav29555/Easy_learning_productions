@@ -11,6 +11,7 @@ import com.fixcart.fixcart.exception.BadRequestException;
 import com.fixcart.fixcart.exception.ResourceNotFoundException;
 import com.fixcart.fixcart.repository.TrackingEventRepository;
 import com.fixcart.fixcart.repository.WorkerRepository;
+import java.time.Duration;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -30,9 +31,19 @@ public class TrackingService {
     private final RoutePlanningService routePlanningService;
     private final EtaSubscriptionService etaSubscriptionService;
 
+    @org.springframework.beans.factory.annotation.Value("${fixcart.dispatch.stalled-minutes:8}")
+    private long stalledMinutesThreshold;
+
+    @org.springframework.beans.factory.annotation.Value("${fixcart.dispatch.regression-km:0.75}")
+    private double regressionDistanceKm;
+
+    @org.springframework.beans.factory.annotation.Value("${fixcart.dispatch.eta-regression-minutes:8}")
+    private long etaRegressionMinutes;
+
     @Transactional
     public TrackingEventResponse publishLocation(Long bookingId, Long userId, UserRole role, TrackingUpdateRequest request) {
         Booking booking = bookingService.findBookingOrThrow(bookingId);
+        TrackingEvent previousEvent = trackingEventRepository.findTop1ByBookingIdOrderByCreatedAtDesc(bookingId);
 
         Worker worker;
         if (role == UserRole.ADMIN) {
@@ -67,6 +78,7 @@ public class TrackingService {
             );
         }
         etaSubscriptionService.processDistanceUpdate(booking, response.distanceToDestinationKm(), response.etaMinutes());
+        evaluateReDispatch(booking, previousEvent, saved, response);
         return response;
     }
 
@@ -124,5 +136,45 @@ public class TrackingService {
                 etaMinutes,
                 event.getCreatedAt()
         );
+    }
+
+    private void evaluateReDispatch(Booking booking, TrackingEvent previousEvent, TrackingEvent currentEvent, TrackingEventResponse currentResponse) {
+        if (previousEvent == null || booking.getWorker() == null) {
+            return;
+        }
+        if (booking.getStatus() != com.fixcart.fixcart.entity.enums.BookingStatus.ASSIGNED
+                && booking.getStatus() != com.fixcart.fixcart.entity.enums.BookingStatus.IN_PROGRESS) {
+            return;
+        }
+
+        double previousDistanceKm = workerService.haversineKm(
+                previousEvent.getLatitude(),
+                previousEvent.getLongitude(),
+                booking.getCustomerLatitude(),
+                booking.getCustomerLongitude()
+        );
+        long previousEtaMinutes = routePlanningService.estimateEtaMinutes(previousDistanceKm, previousEvent.getSpeedKmh());
+        long gapMinutes = Math.max(1L, Duration.between(previousEvent.getCreatedAt(), currentEvent.getCreatedAt()).toMinutes());
+
+        boolean stalled = currentEvent.getSpeedKmh() < 3.0d
+                && gapMinutes >= stalledMinutesThreshold
+                && currentResponse.distanceToDestinationKm() >= previousDistanceKm - 0.2d;
+        boolean etaWorsened = currentResponse.distanceToDestinationKm() > previousDistanceKm + regressionDistanceKm
+                || currentResponse.etaMinutes() > previousEtaMinutes + etaRegressionMinutes;
+
+        if (!stalled && !etaWorsened) {
+            return;
+        }
+
+        Long previousWorkerId = booking.getWorker().getId();
+        var reassigned = bookingService.assignNearestWorker(booking.getId(), previousWorkerId);
+        if (reassigned.workerId() != null && !reassigned.workerId().equals(previousWorkerId)) {
+            notificationService.sendToUser(
+                    booking.getCustomer().getId(),
+                    "BOOKING_REDISPATCHED",
+                    "Worker reassigned",
+                    "fixcart reassigned your booking because the route ETA worsened or movement stalled."
+            );
+        }
     }
 }
