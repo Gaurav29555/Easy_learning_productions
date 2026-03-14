@@ -10,8 +10,8 @@ export default function VoiceLauncherButton() {
   const location = useLocation();
 
   const canUseVoice = useMemo(
-    () => isAuthenticated && (auth.role === "CUSTOMER" || auth.role === "ADMIN"),
-    [auth.role, isAuthenticated]
+    () => isAuthenticated && (auth?.role === "CUSTOMER" || auth?.role === "ADMIN"),
+    [auth, isAuthenticated]
   );
 
   if (!canUseVoice) {

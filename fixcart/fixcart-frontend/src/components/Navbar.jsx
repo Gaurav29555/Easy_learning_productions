@@ -27,13 +27,13 @@ export default function Navbar() {
         </div>
         {isAuthenticated ? (
           <>
-            {(auth.role === "CUSTOMER" || auth.role === "ADMIN") && (
+            {(auth?.role === "CUSTOMER" || auth?.role === "ADMIN") && (
               <Link className="ghost-link" to="/assistant">
                 Assistant
               </Link>
             )}
             <NotificationCenter />
-            <span className="role-pill">{auth.role}</span>
+            <span className="role-pill">{auth?.role}</span>
             <button className="ghost-btn" onClick={onLogout}>
               Logout
             </button>
