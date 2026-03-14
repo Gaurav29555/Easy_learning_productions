@@ -33,13 +33,26 @@ public class OtpService {
     @Value("${fixcart.otp.max-attempts:5}")
     private int otpMaxAttempts;
 
+    @Value("${fixcart.otp.send-max-requests:25}")
+    private int otpSendMaxRequests;
+
+    @Value("${fixcart.otp.verify-max-requests:50}")
+    private int otpVerifyMaxRequests;
+
+    @Value("${fixcart.otp.rate-limit-window-minutes:15}")
+    private int otpRateLimitWindowMinutes;
+
     @Value("${fixcart.otp.expose-in-response:true}")
     private boolean exposeOtpInResponse;
 
     @Transactional
     public OtpStatusResponse sendOtp(String email, OtpPurpose purpose) {
         String normalizedEmail = email.toLowerCase().trim();
-        requestRateLimitService.assertAllowed("otp:send:" + normalizedEmail, 5, Duration.ofMinutes(15));
+        requestRateLimitService.assertAllowed(
+                "otp:send:" + normalizedEmail,
+                otpSendMaxRequests,
+                Duration.ofMinutes(otpRateLimitWindowMinutes)
+        );
         String otpCode = String.format("%06d", random.nextInt(1_000_000));
         OtpVerification otp = new OtpVerification();
         otp.setEmail(normalizedEmail);
@@ -64,7 +77,11 @@ public class OtpService {
     @Transactional
     public OtpStatusResponse verifyOtp(String email, OtpPurpose purpose, String otpCode) {
         String normalizedEmail = email.toLowerCase().trim();
-        requestRateLimitService.assertAllowed("otp:verify:" + normalizedEmail, 10, Duration.ofMinutes(15));
+        requestRateLimitService.assertAllowed(
+                "otp:verify:" + normalizedEmail,
+                otpVerifyMaxRequests,
+                Duration.ofMinutes(otpRateLimitWindowMinutes)
+        );
         OtpVerification otp = otpVerificationRepository.findFirstByEmailAndPurposeOrderByCreatedAtDesc(normalizedEmail, purpose)
                 .orElseThrow(() -> new BadRequestException("No OTP found. Please request a new OTP."));
 

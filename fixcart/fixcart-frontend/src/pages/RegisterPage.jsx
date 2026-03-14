@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser, registerWorker, sendOtp, verifyOtp } from "../api/fixcartApi";
 import LocationPicker from "../components/LocationPicker";
 import { useAuth } from "../context/AuthContext";
 import { useFixcartSettings } from "../context/FixcartSettingsContext";
+
+function createCaptcha() {
+  const left = Math.floor(Math.random() * 9) + 1;
+  const right = Math.floor(Math.random() * 9) + 1;
+  return { left, right, answer: left + right };
+}
 
 export default function RegisterPage() {
   const { login: saveAuth } = useAuth();
@@ -15,6 +21,9 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [captcha, setCaptcha] = useState(() => createCaptcha());
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -28,6 +37,12 @@ export default function RegisterPage() {
   });
 
   const isWorker = accountType === "WORKER";
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+    const timer = window.setTimeout(() => setResendCooldown((current) => current - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -77,9 +92,20 @@ export default function RegisterPage() {
       setError("Enter a valid email address.");
       return;
     }
+    if (resendCooldown > 0) {
+      setError(`Wait ${resendCooldown}s before requesting another OTP.`);
+      return;
+    }
+    if (Number(captchaAnswer) !== captcha.answer) {
+      setError("Solve the captcha correctly before sending OTP.");
+      return;
+    }
     try {
       const data = await sendOtp({ email: normalizedEmail, purpose: "REGISTER" });
       setForm((current) => ({ ...current, email: normalizedEmail }));
+      setResendCooldown(30);
+      setCaptcha(createCaptcha());
+      setCaptchaAnswer("");
       setInfo(data.debugOtp ? `Your fixcart OTP is ${data.debugOtp}. Enter it below to continue.` : "OTP generated. Enter it below to continue.");
     } catch (err) {
       setError(err.message);
@@ -170,9 +196,19 @@ export default function RegisterPage() {
             }}
             required
           />
+          <div className="captcha-row">
+            <div className="captcha-box">Captcha: {captcha.left} + {captcha.right} = ?</div>
+            <input
+              type="text"
+              placeholder="Captcha answer"
+              value={captchaAnswer}
+              onChange={(e) => setCaptchaAnswer(e.target.value.replace(/\D/g, ""))}
+              required
+            />
+          </div>
           <div className="action-row">
-            <button type="button" onClick={onSendOtp}>
-              Send OTP
+            <button type="button" onClick={onSendOtp} disabled={resendCooldown > 0}>
+              {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Send OTP"}
             </button>
             <input
               type="text"

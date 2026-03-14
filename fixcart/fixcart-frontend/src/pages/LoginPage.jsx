@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login, loginWithOtp, sendOtp } from "../api/fixcartApi";
 import { useAuth } from "../context/AuthContext";
 import { useFixcartSettings } from "../context/FixcartSettingsContext";
+
+function createCaptcha() {
+  const left = Math.floor(Math.random() * 9) + 1;
+  const right = Math.floor(Math.random() * 9) + 1;
+  return { left, right, answer: left + right };
+}
 
 export default function LoginPage() {
   const { login: saveAuth } = useAuth();
@@ -13,6 +19,15 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [otpForm, setOtpForm] = useState({ email: "", otpCode: "" });
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [captcha, setCaptcha] = useState(() => createCaptcha());
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+    const timer = window.setTimeout(() => setResendCooldown((current) => current - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -40,10 +55,21 @@ export default function LoginPage() {
       setError("Enter a valid email first.");
       return;
     }
+    if (resendCooldown > 0) {
+      setError(`Wait ${resendCooldown}s before requesting another OTP.`);
+      return;
+    }
+    if (Number(captchaAnswer) !== captcha.answer) {
+      setError("Solve the captcha correctly before sending OTP.");
+      return;
+    }
     try {
       const data = await sendOtp({ email: normalizedEmail, purpose: "LOGIN" });
       setOtpForm((current) => ({ ...current, email: normalizedEmail }));
-      setInfo(`Login OTP sent to email. ${data.debugOtp ? `Dev OTP: ${data.debugOtp}` : "Check your inbox."}`);
+      setResendCooldown(30);
+      setCaptcha(createCaptcha());
+      setCaptchaAnswer("");
+      setInfo(data.debugOtp ? `Your login OTP is ${data.debugOtp}. Enter it below to continue.` : "OTP generated. Enter it below to continue.");
     } catch (err) {
       setError(err.message);
     }
@@ -102,9 +128,19 @@ export default function LoginPage() {
             onChange={(e) => setOtpForm({ ...otpForm, email: e.target.value })}
             required
           />
+          <div className="captcha-row">
+            <div className="captcha-box">Captcha: {captcha.left} + {captcha.right} = ?</div>
+            <input
+              type="text"
+              placeholder="Captcha answer"
+              value={captchaAnswer}
+              onChange={(e) => setCaptchaAnswer(e.target.value.replace(/\D/g, ""))}
+              required
+            />
+          </div>
           <div className="action-row">
-            <button type="button" onClick={onSendLoginOtp}>
-              Send Login OTP
+            <button type="button" onClick={onSendLoginOtp} disabled={resendCooldown > 0}>
+              {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Send Login OTP"}
             </button>
             <input
               type="text"

@@ -27,7 +27,10 @@ export default function LandingPage() {
               Login
             </Link>
           </div>
-          <div className="voice-chip">{copy.voiceCta}</div>
+          <div className="voice-chip">
+            {copy.voiceCta}
+            <div className="voice-chip-subline">After login, tap the floating mic button to speak directly to fixcart.</div>
+          </div>
         </div>
         <div className="hero-side">
           <LanguageRegionSelector />

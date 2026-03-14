@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AdminDashboard from "./pages/AdminDashboard";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import VoiceLauncherButton from "./components/VoiceLauncherButton";
 import { useAuth } from "./context/AuthContext";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import LandingPage from "./pages/LandingPage";
@@ -24,6 +25,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <Navbar />
+      <VoiceLauncherButton />
       <Routes>
         <Route path="/" element={isAuthenticated ? <HomeRedirect /> : <LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
