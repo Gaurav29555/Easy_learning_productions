@@ -1,5 +1,5 @@
 const FIXCART_API_BASE_URL =
-  import.meta.env.VITE_FIXCART_API_URL || "http://localhost:8080";
+  import.meta.env.VITE_FIXCART_API_URL || "http://localhost:5000";
 
 async function request(path, method = "GET", body, token) {
   let response;
@@ -13,14 +13,14 @@ async function request(path, method = "GET", body, token) {
       body: body ? JSON.stringify(body) : undefined
     });
   } catch (error) {
-    throw new Error("Cannot reach the fixcart backend right now. Check Render deployment and CORS settings.");
+    throw new Error("Cannot reach the fixcart backend right now. Check deployment and CORS settings.");
   }
 
   if (!response.ok) {
     let message = "Request failed";
     try {
       const errorPayload = await response.json();
-      message = errorPayload.message || message;
+      message = errorPayload.error || message;
     } catch (error) {
       message = response.statusText || message;
     }
@@ -33,20 +33,12 @@ async function request(path, method = "GET", body, token) {
   return response.json();
 }
 
-export function registerUser(payload) {
-  return request("/api/auth/register/user", "POST", payload);
-}
-
-export function registerWorker(payload) {
-  return request("/api/auth/register/worker", "POST", payload);
+export function register(payload) {
+  return request("/api/auth/register", "POST", payload);
 }
 
 export function login(payload) {
   return request("/api/auth/login", "POST", payload);
-}
-
-export function loginWithOtp(payload) {
-  return request("/api/auth/login/otp", "POST", payload);
 }
 
 export function sendOtp(payload) {
@@ -57,55 +49,50 @@ export function verifyOtp(payload) {
   return request("/api/auth/otp/verify", "POST", payload);
 }
 
-export function getServiceCatalog() {
-  return request("/api/catalog/services", "GET");
-}
-
-export function executeVoiceCommand(payload, token) {
-  return request("/api/voice/commands", "POST", payload, token);
-}
-
-export function searchAddresses(params, token) {
+export function getWorkers(params) {
   const search = new URLSearchParams(params);
-  return request(`/api/locations/search?${search.toString()}`, "GET", undefined, token);
+  return request(`/api/workers?${search.toString()}`);
 }
 
-export function getRouteEta(params, token) {
-  const search = new URLSearchParams(params);
-  return request(`/api/locations/route-eta?${search.toString()}`, "GET", undefined, token);
-}
-
-export function findNearbyWorkers(params, token) {
-  const search = new URLSearchParams(params);
-  return request(`/api/workers/nearby?${search.toString()}`, "GET", undefined, token);
-}
-
-export function updateWorkerLocation(payload, token) {
-  return request("/api/workers/me/location", "PATCH", payload, token);
+export function getWorker(id) {
+  return request(`/api/workers/${id}`);
 }
 
 export function createBooking(payload, token) {
   return request("/api/bookings", "POST", payload, token);
 }
 
-export function getMyBookings(token) {
-  return request("/api/bookings/my", "GET", undefined, token);
+export function getUserBookings(token) {
+  return request("/api/bookings/user", "GET", undefined, token);
 }
 
 export function getWorkerBookings(token) {
   return request("/api/bookings/worker", "GET", undefined, token);
 }
 
-export function updateBookingStatus(bookingId, payload, token) {
-  return request(`/api/bookings/${bookingId}/status`, "PATCH", payload, token);
+export function updateBookingStatus(id, payload, token) {
+  return request(`/api/bookings/${id}/status`, "PUT", payload, token);
 }
 
-export function createPaymentOrder(payload, token) {
-  return request("/api/payments/order", "POST", payload, token);
+export function createPaymentIntent(payload, token) {
+  return request("/api/payments/create-payment-intent", "POST", payload, token);
 }
 
-export function confirmPayment(payload, token) {
-  return request("/api/payments/confirm", "PATCH", payload, token);
+export function confirmPayment(id, token) {
+  return request(`/api/payments/confirm/${id}`, "POST", {}, token);
+}
+
+export function createReview(payload, token) {
+  return request("/api/reviews", "POST", payload, token);
+}
+
+export function getWorkerReviews(id) {
+  return request(`/api/reviews/worker/${id}`);
+}
+
+export function executeVoiceCommand(payload, token) {
+  return request("/api/voice/commands", "POST", payload, token);
+}
 }
 
 export function getMyPayments(token) {

@@ -1,0 +1,33 @@
+name: Deploy Fixcart
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build backend
+      run: |
+        cd fixcart-backend
+        npm install
+        npm run build  # if needed
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build frontend
+      run: |
+        cd fixcart/fixcart-frontend
+        npm install
+        npm run build
+
+  deploy:
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to server
+      run: echo "Deploy steps here"
